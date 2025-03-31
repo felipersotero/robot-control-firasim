@@ -4,6 +4,7 @@ from lib.comm.vision import ProtoVision
 from lib.core.data import FieldData
 
 from control import Control
+from navigation import Navigation
 from build_graphics import BuildGraphics
 
 import logging
@@ -34,6 +35,7 @@ class Main():
 
         # Chama arquivo de controle
         self.control = Control(self)
+        self.navigation = self.control.navigation
 
         # self.control.loadCSVWriter()
 
@@ -60,17 +62,18 @@ class Main():
         try:
             while True:
 
-                wr, wl = self.control.processControl()
-
+                wr, wl = self.control.processControl(robotId=0, mode=1)
                 # print(f"wr = {round(wr, 2)}, wl = {round(wl, 2)}")
-
                 # self.blue_control.transmit_robot(robot_id, left_wheel, right_wheel)
-                self.blue_control.transmit_robot(0, wl, wr)
+                # self.blue_control.transmit_robot(0, wl, wr)
+
                 # self.yellow_control.transmit_robot(0, wl, wr)
                 # self.blue_control.transmit_robot(1, 0, 0)
         
         except KeyboardInterrupt:
             logging.info("Ending")
+
+            self.navigation.saveData2JSON()
 
             if self.saving:
                 self.control.saveData2JSON()

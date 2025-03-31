@@ -3,8 +3,7 @@ import time
 import csv
 import json
 
-
-from build_graphics import BuildGraphics
+from navigation import Navigation
 
 class Control():
     def __init__(self, Main):
@@ -18,19 +17,20 @@ class Control():
         self.vision = Main.vision
         self.test_field_data = Main.test_field_data
 
+        # Instância da classe Navigation
+        self.navigation = Navigation(self)
+
         # Dimensões do robo
         self.r = 1
         self.L = 7.5
 
         # Coordenadas do gol
-
         self.goal_coordinates = [0, 65]
 
         self.robot_positions = []  # Lista para armazenar os dados
         self.robot_errors = []  # Lista para armazenar os dados
 
-        # self.loadCSVWriter()
-
+    # Funções de tratamento de dados
     def convertXValues(self, value):
         return ((0.75)+value)*100
 
@@ -99,37 +99,56 @@ class Control():
 
         return distance
 
-    def processControl(self):
+    # Funções principais de controle
+    def processControl(self, robotId, mode):
         self.getFieldData()
 
-        dist_ball = self.distanceBetweenObjects(self.ball_coordinates, self.allies_coordinates[0])
-        angle_ball = self.angleBetweenObjects(self.ball_coordinates, self.allies_coordinates[0], self.allies_direction[0])
+        '''
+            Modos de controle:
+                0 - sem navegação
+                1 - com navegação
+        '''
 
-        dy_gamma = self.ball_coordinates[1] - self.allies_coordinates[0][1]
-        dx_gamma = self.ball_coordinates[0] - self.allies_coordinates[0][0]
-        gamma = np.arctan2(dy_gamma, dx_gamma)
+        if mode == 0:
+            dist_ball = self.distanceBetweenObjects(self.ball_coordinates, self.allies_coordinates[robotId])
+            angle_ball = self.angleBetweenObjects(self.ball_coordinates, self.allies_coordinates[robotId], self.allies_direction[robotId])
 
-        dy_theta_g = self.goal_coordinates[1] - self.ball_coordinates[1]
-        dx_theta_g = self.goal_coordinates[0] - self.ball_coordinates[0]
-        theta_g = np.arctan2(dy_theta_g, dx_theta_g)
+            dy_gamma = self.ball_coordinates[1] - self.allies_coordinates[robotId][1]
+            dx_gamma = self.ball_coordinates[0] - self.allies_coordinates[robotId][0]
+            gamma = np.arctan2(dy_gamma, dx_gamma)
 
-        if (abs(gamma) + abs(theta_g)) > (np.pi):
-            angle_to_goal = 2*(np.pi) - abs(gamma) - abs(theta_g)
+            dy_theta_g = self.goal_coordinates[1] - self.ball_coordinates[1]
+            dx_theta_g = self.goal_coordinates[0] - self.ball_coordinates[0]
+            theta_g = np.arctan2(dy_theta_g, dx_theta_g)
+
+            if (abs(gamma) + abs(theta_g)) > (np.pi):
+                angle_to_goal = 2*(np.pi) - abs(gamma) - abs(theta_g)
+            else:
+                angle_to_goal = abs(gamma) + abs(theta_g)
+
+            print(f"rho: {round(dist_ball, 2)} cm || alpha: {round(self.convertRad2Deg(angle_ball), 2)} ° || beta: {round(self.convertRad2Deg(angle_to_goal), 2)} ° || gamma: {round(self.convertRad2Deg(gamma), 2)} ° || theta_g: {round(self.convertRad2Deg(theta_g), 2)} °")
+            wr, wl = self.controlRobot(dist_ball, angle_ball, angle_to_goal)
+
+            self.savePosition(self.allies_coordinates[robotId][0], self.allies_coordinates[robotId][1], self.allies_direction[robotId])
+
+            e_rho = 0 - dist_ball
+            e_alpha = 0 - angle_ball
+            e_beta = 0 - angle_to_goal
+
+            self.saveErrors(e_rho, e_alpha, e_beta)
+
+            return wr, wl
+        
         else:
-            angle_to_goal = abs(gamma) + abs(theta_g)
+            print("Modo com Navegação")
+            vector = self.navigation.createPotentialField(robotId=robotId)
 
-        print(f"rho: {round(dist_ball, 2)} cm || alpha: {round(self.convertRad2Deg(angle_ball), 2)} ° || beta: {round(self.convertRad2Deg(angle_to_goal), 2)} ° || gamma: {round(self.convertRad2Deg(gamma), 2)} ° || theta_g: {round(self.convertRad2Deg(theta_g), 2)} °")
-        wr, wl = self.controlRobot(dist_ball, angle_ball, angle_to_goal)
+            mod = np.linalg.norm(vector)
+            angle = self.angleBetweenObjects(self.allies_coordinates[robotId] + vector, self.allies_coordinates[robotId], self.allies_direction[robotId])
 
-        self.savePosition(self.allies_coordinates[0][0], self.allies_coordinates[0][1], self.allies_direction[0])
+            wr, wl = self.controlRobot(mod, angle, 0)
 
-        e_rho = 0 - dist_ball
-        e_alpha = 0 - angle_ball
-        e_beta = 0 - angle_to_goal
-
-        self.saveErrors(e_rho, e_alpha, e_beta)
-
-        return wr, wl
+            return wr, wl
 
     def controlRobot(self, rho, alpha, beta):
         kr = 1.8
@@ -160,7 +179,7 @@ class Control():
 
         return wr, wl
 
-
+    # Funções para salvar dados
     def savePosition(self, x, y, theta):
         self.robot_positions.append({"x": x, "y": y, "theta": theta})
 
