@@ -17,6 +17,8 @@ class Control():
         self.vision = Main.vision
         self.test_field_data = Main.test_field_data
 
+        self.saving = Main.saving
+
         # Instância da classe Navigation
         self.navigation = Navigation(self)
 
@@ -29,6 +31,8 @@ class Control():
 
         self.robot_positions = []  # Lista para armazenar os dados
         self.robot_errors = []  # Lista para armazenar os dados
+        self.data = [None, None, None, None, None, None, None, None, None]
+
 
     # Funções de tratamento de dados
     def convertXValues(self, value):
@@ -110,6 +114,7 @@ class Control():
         '''
 
         if mode == 0:
+            print("Modo apenas Controle")
             dist_ball = self.distanceBetweenObjects(self.ball_coordinates, self.allies_coordinates[robotId])
             angle_ball = self.angleBetweenObjects(self.ball_coordinates, self.allies_coordinates[robotId], self.allies_direction[robotId])
 
@@ -126,51 +131,90 @@ class Control():
             else:
                 angle_to_goal = abs(gamma) + abs(theta_g)
 
-            print(f"rho: {round(dist_ball, 2)} cm || alpha: {round(self.convertRad2Deg(angle_ball), 2)} ° || beta: {round(self.convertRad2Deg(angle_to_goal), 2)} ° || gamma: {round(self.convertRad2Deg(gamma), 2)} ° || theta_g: {round(self.convertRad2Deg(theta_g), 2)} °")
-            wr, wl = self.controlRobot(dist_ball, angle_ball, angle_to_goal)
+            area = 1 # 1 - bola à frente | 2 - bola atrás
 
-            self.savePosition(self.allies_coordinates[robotId][0], self.allies_coordinates[robotId][1], self.allies_direction[robotId])
+            if abs(angle_ball) > (np.pi)/2:
+                area = 2
+                if angle_ball >= 0:
+                    angle_ball = np.pi - angle_ball
+                else:
+                    angle_ball = abs(angle_ball) - np.pi
 
-            e_rho = 0 - dist_ball
-            e_alpha = 0 - angle_ball
-            e_beta = 0 - angle_to_goal
+            print(f"rho: {round(dist_ball, 2)} cm || area: {area} || alpha: {round(self.convertRad2Deg(angle_ball), 2)} ° || beta: {round(self.convertRad2Deg(angle_to_goal), 2)} ° || gamma: {round(self.convertRad2Deg(gamma), 2)} ° || theta_g: {round(self.convertRad2Deg(theta_g), 2)} °")
 
-            self.saveErrors(e_rho, e_alpha, e_beta)
+            angle_to_goal = 0
+            
+            # Chama função para aplicar controle
+            wr, wl = self.controlRobot(dist_ball, angle_ball, angle_to_goal, area)
+
+            # Salvamento dos dados dos erros
+            if (self.saving): self.savePosition(self.allies_coordinates[robotId][0], self.allies_coordinates[robotId][1], self.allies_direction[robotId])
+
+            e_rho = 0 - abs(dist_ball)
+            e_alpha = 0 - abs(angle_ball)
+            e_beta = 0 - abs(angle_to_goal)
+
+            if (self.saving): self.saveErrors(e_rho, e_alpha, e_beta)
+
+            # Salvamento dos dados dos objetos
+            if (self.saving): self.saveDataObjects(0, self.allies_coordinates[robotId][0], self.allies_coordinates[robotId][1])
+            if (self.saving): self.saveDataObjects(1, self.ball_coordinates[0], self.ball_coordinates[1])
+
+            for i, enemy in enumerate(self.enemies_coordinates, start=2):
+                if (self.saving): self.saveDataObjects(i, enemy[0], enemy[1])
+            
+            if (self.saving): self.saveDataObjects(5, np.cos(self.allies_angles[robotId]), np.sin(self.allies_angles[robotId])) # theta
+            if (self.saving): self.saveDataObjects(6, dist_ball*np.cos(angle_ball), dist_ball*np.sin(angle_ball)) # rho e alfa
+            if (self.saving): self.saveDataObjects(7, np.cos(angle_to_goal), np.sin(angle_to_goal)) # beta
 
             return wr, wl
         
-        else:
+        elif mode == 1:
             print("Modo com Navegação")
             vector = self.navigation.createPotentialField(robotId=robotId)
 
             mod = np.linalg.norm(vector)
             angle = self.angleBetweenObjects(self.allies_coordinates[robotId] + vector, self.allies_coordinates[robotId], self.allies_direction[robotId])
 
-            wr, wl = self.controlRobot(mod, angle, 0)
+            area = 1 # 1 - alvo à frente | 2 - alvo atrás
+
+            if abs(angle) > (np.pi)/2:
+                area = 2
+                if angle >= 0:
+                    angle = np.pi - angle
+                else:
+                    angle = abs(angle) - np.pi
+
+            wr, wl = self.controlRobot(mod, angle, 0, area)
 
             return wr, wl
-
-    def controlRobot(self, rho, alpha, beta):
-        kr = 1.8
-        ka = 10
+        
+    def controlRobot(self, rho, alpha, beta, area):
+        kr = 0.8
+        ka = 14
         kb = -2
 
-        if abs(alpha) > ((np.pi)/2):
-            kr = 0.05
-            ka = 1
+        if abs(alpha) > ((np.pi)/4):
+            kr = 0.2
+            ka = 3
             kb = 0
 
-        if rho < 8:
-            kr = 3
-            ka = 1
-            kb = -2.5
+        if area == 2:
+            kr = -kr
+            ka = -ka
+            kb = -kb
+
+        # if rho < 8:
+        #     kr = 3
+        #     ka = 1
+        #     kb = -2.5
 
         v = kr*rho
         w = ka*alpha + kb*beta
 
         print(f"v = {v} || w = {w}")
 
-        if (self.ball_coordinates[0] > 150) or (self.ball_coordinates[0] < 0) or rho < 9:
+        if (self.ball_coordinates[0] > 150) or (self.ball_coordinates[0] < 0): # or rho < 9:
             wr = 0
             wl = 0
         else:
@@ -195,3 +239,16 @@ class Control():
         # Salvar em arquivo JSON ao final da execução
         with open("errors_data.json", "w") as file:
             json.dump(self.robot_errors, file, indent=4)
+    
+    # Funções para salvar dados
+    def saveDataObjects(self, i, x, y):
+        self.data[i] = {"x": x, "y": y}
+        # print(f"Salvando dados... {x}, {y}")
+        # print(self.data)
+
+    def saveData2JSONObjects(self):
+        # Salvar em arquivo JSON ao final da execução
+        with open("field_data.json", "w") as file:
+            json.dump(self.data, file, indent=4)
+            # print("Dados salvos!")
+            # print(self.data)

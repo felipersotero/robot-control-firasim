@@ -1,14 +1,18 @@
 import json
 import matplotlib.pyplot as plt
+import numpy as np
 
 # 1. Ler o arquivo JSON
 with open("errors_data.json", "r") as file:
     data = json.load(file)
 
+def convertRad2Deg(value):
+    return value*(180/(np.pi))
+
 # 2. Extrair os valores de y e gerar um eixo x com a contagem de índices
 y_data1 = [ponto["e_rho"] for ponto in data]
-y_data2 = [ponto["e_alpha"] for ponto in data]
-y_data3 = [ponto["e_beta"] for ponto in data]
+y_data2 = [convertRad2Deg(ponto["e_alpha"]) for ponto in data]
+y_data3 = [convertRad2Deg(ponto["e_beta"]) for ponto in data]
 x_data = list(range(len(y_data1)))  # Criar eixo X como sequência de índices (0, 1, 2, ...)
 
 # 3. Criar o gráfico

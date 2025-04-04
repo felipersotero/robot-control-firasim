@@ -13,7 +13,13 @@ class Navigation():
         self.vision = Control.vision
         self.test_field_data = Control.test_field_data
 
+        self.saving = Control.saving
+
         self.data = [None, None, None, None, None, None]
+
+        # Dimensões do campo
+        self.field_x = 150
+        self.field_y = 130
 
     # Funções de tratamento de dados
     def convertXValues(self, value):
@@ -54,25 +60,44 @@ class Navigation():
                 self.allies_angles_deg[i] = self.convertRad2Deg(self.allies_angles[i])
 
     def calculateAttractiveForce(self, gain, source_coordinates, target_coordinates):
-
         vector = [target_coordinates[0] - source_coordinates[0], target_coordinates[1] - source_coordinates[1]]
         mod = np.linalg.norm(vector)
         vector_norm = vector/mod
 
         vector_result = gain*mod*vector_norm
 
+        if mod <= 20:
+            vector_result = gain*20*vector_result
+
         return vector_result
 
     def calculateRepulsiveForces(self, gain, area, source_coordinates, obstacles_coordinates):
-
         vector_result = [0, 0]
+
+        robot_x = source_coordinates[0]
+        robot_y = source_coordinates[1]
+
         for obstacle in obstacles_coordinates:
-            vector = [obstacle[0] - source_coordinates[0], obstacle[1] - source_coordinates[1]]
+            vector = [obstacle[0] - robot_x, obstacle[1] - robot_y]
             mod = np.linalg.norm(vector)
             vector_norm = vector/mod
 
             if mod <= area:
                vector_result = vector_result + (gain*(1/(mod**2))*vector_norm)
+
+            if mod <= (10):
+               vector_result = vector_result + (gain*1000*(1/(mod**2))*vector_norm)
+
+        # Desvio das paredes
+        # if robot_x < 15 and robot_x != 0:
+        #     vector_result[0] = vector_result[0] + (gain*(1/((robot_x)**2)))
+        # elif robot_x > (self.field_x - 15):
+        #     vector_result[0] = vector_result[0] + (gain*(1/(((self.field_x - 15) - robot_x)**2)))
+
+        # if robot_y < 15:
+        #     vector_result[1] = vector_result[1] + (gain*(1/((robot_y)**2)))
+        # elif robot_y > (self.field_y - 15):
+        #     vector_result[1] = vector_result[1] + (gain*(1/(((self.field_y - 15) - robot_y)**2)))
 
         return vector_result
 
@@ -82,20 +107,20 @@ class Navigation():
 
         obstacles_coordinates = []
 
-        attractiveForce = self.calculateAttractiveForce(0.5, self.allies_coordinates[robotId], self.ball_coordinates)
+        attractiveForce = self.calculateAttractiveForce(0.6, self.allies_coordinates[robotId], self.ball_coordinates)
 
-        self.saveData(0, self.allies_coordinates[robotId][0], self.allies_coordinates[robotId][1])
-        self.saveData(1, self.ball_coordinates[0], self.ball_coordinates[1])
+        if (self.saving): self.saveData(0, self.allies_coordinates[robotId][0], self.allies_coordinates[robotId][1])
+        if (self.saving): self.saveData(1, self.ball_coordinates[0], self.ball_coordinates[1])
 
         for i, enemy in enumerate(self.enemies_coordinates, start=2):
             obstacles_coordinates.append(enemy)
-            self.saveData(i, enemy[0], enemy[1])
+            if (self.saving): self.saveData(i, enemy[0], enemy[1])
 
-        repulsiveForce = self.calculateRepulsiveForces(10000, 50, self.allies_coordinates[robotId], obstacles_coordinates)
+        repulsiveForce = self.calculateRepulsiveForces(4000, 40, self.allies_coordinates[robotId], obstacles_coordinates)
 
         resulting_force = attractiveForce - repulsiveForce
 
-        self.saveData(5, resulting_force[0], resulting_force[1])
+        if (self.saving): self.saveData(5, resulting_force[0], resulting_force[1])
         # self.saveData(5, 1, 1)
 
         return resulting_force
@@ -103,13 +128,13 @@ class Navigation():
     # Funções para salvar dados
     def saveData(self, i, x, y):
         self.data[i] = {"x": x, "y": y}
-        print(f"Salvando dados... {x}, {y}")
+        # print(f"Salvando dados... {x}, {y}")
         print(self.data)
 
     def saveData2JSON(self):
         # Salvar em arquivo JSON ao final da execução
         with open("field_data.json", "w") as file:
             json.dump(self.data, file, indent=4)
-            print("Dados salvos!")
-            print(self.data)
+            # print("Dados salvos!")
+            # print(self.data)
 
