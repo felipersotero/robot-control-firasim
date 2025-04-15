@@ -185,7 +185,7 @@ class Control():
     def controlRobot(self, rho, alpha, beta, area):
         self.kr = 0.8
         self.ka = 14
-        self.kb = -1
+        self.kb = -1.5
 
         if abs(alpha) > ((np.pi)/4):
             self.kr = 0.2
@@ -225,16 +225,16 @@ class Control():
 
     def saveData2JSON(self):
         # Salvar em arquivo JSON ao final da execução
-        with open("robot_data.json", "w") as file:
+        with open("simulation_data/robot_data.json", "w") as file:
             json.dump(self.robot_positions, file, indent=4)
 
     def saveData2JSONErrors(self):
         # Salvar em arquivo JSON ao final da execução
-        with open("errors_data.json", "w") as file:
+        with open("simulation_data/errors_data.json", "w") as file:
             json.dump(self.robot_errors, file, indent=4)
 
     def saveData2JSONConstants(self):
-        with open("constants_data.json", "w") as file:
+        with open("simulation_data/constants_data.json", "w") as file:
             json.dump({"kr": self.kr, "ka": self.ka, "kb": self.kb}, file, indent=4)
 
     # Funções para salvar dados
@@ -245,7 +245,7 @@ class Control():
 
     def saveData2JSONObjects(self):
         # Salvar em arquivo JSON ao final da execução
-        with open("field_data.json", "w") as file:
+        with open("simulation_data/field_data.json", "w") as file:
             json.dump(self.data, file, indent=4)
             # print("Dados salvos!")
             # print(self.data)

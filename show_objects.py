@@ -46,5 +46,5 @@ def exibir_objetos(dados):
     plt.show()
 
 # Carregar e exibir os dados
-dados = carregar_dados_json("field_data.json")
+dados = carregar_dados_json("simulation_data/field_data.json")
 exibir_objetos(dados)

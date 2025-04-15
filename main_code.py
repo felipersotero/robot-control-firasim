@@ -8,7 +8,6 @@ from lib.core.data import Pose2D
 
 from control import Control
 from navigation import Navigation
-from build_graphics import BuildGraphics
 
 import logging
 import numpy as np
@@ -35,7 +34,8 @@ class Main():
         self.saving = True
 
         # Modo de simulação
-        self.mode = 0 # 0 - controle // 1 - navegação
+        self.mode = 0 # 0 - controle | 1 - navegação
+        self.enemies_actives = False
 
         # Ativa comunicação para controle dos robôs yellow e blue
         self.yellow_control = ProtoControl(team_color_yellow=True, control_ip="127.0.0.1", control_port=20011)
@@ -138,7 +138,19 @@ class Main():
                     # print(f"wr = {round(wr, 2)}, wl = {round(wl, 2)}")
                     self.blue_control.transmit_robot(0, wl, wr)
 
-                    self.yellow_replacer.place_team([(self.robot_set, 0)])
+                    # wr1, wl1 = self.control.processControl(robotId=1, mode=self.mode, func=self.getFieldData)
+                    # self.blue_control.transmit_robot(1, wl1, wr1)
+
+                    # wr2, wl2 = self.control.processControl(robotId=2, mode=self.mode, func=self.getFieldData)
+                    # self.blue_control.transmit_robot(2, wl2, wr2)
+
+                    if self.enemies_actives:
+                       self.yellow_control.transmit_robot(0, 0, 2)
+                       self.yellow_control.transmit_robot(1, 5, 2)
+                       self.yellow_control.transmit_robot(2, 4, 0)
+
+                    # else:
+                    #     self.yellow_replacer.place_team([(self.robot_set, 0)])
 
                     time.sleep(0.01)
 
@@ -153,13 +165,11 @@ class Main():
             logging.info("Ending")
 
             if self.saving:
-                if self.mode == 0 or self.mode == 1:
-                    self.control.saveData2JSON()
-                    self.control.saveData2JSONErrors()
-                    self.control.saveData2JSONConstants()
-                    # self.control.saveData2JSONObjects()
-                elif self.mode == 1:
-                    self.navigation.saveData2JSON()
+                self.control.saveData2JSON()
+                self.control.saveData2JSONErrors()
+                self.control.saveData2JSONConstants()
+                # self.control.saveData2JSONObjects()
+                self.navigation.saveData2JSON()
 
     def stop(self):
         print("Encerrando execução com segurança...")

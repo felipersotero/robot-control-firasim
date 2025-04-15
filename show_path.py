@@ -2,7 +2,7 @@ import json
 import matplotlib.pyplot as plt
 
 # 1. Ler o arquivo JSON
-with open("robot_data.json", "r") as file:
+with open("simulation_data/robot_data.json", "r") as file:
     data = json.load(file)  # Carrega os dados do JSON
 
 # 2. Extrair listas de coordenadas X e Y

@@ -21,6 +21,8 @@ class Navigation():
         self.field_x = 150
         self.field_y = 130
 
+        self.consider_walls = True
+
     # Funções de tratamento de dados
     def convertXValues(self, value):
         return ((0.75)+value)*100
@@ -89,15 +91,16 @@ class Navigation():
                vector_result = vector_result + (gain*1000*(1/(mod**2))*vector_norm)
 
         # Desvio das paredes
-        # if robot_x < 15 and robot_x != 0:
-        #     vector_result[0] = vector_result[0] + (gain*(1/((robot_x)**2)))
-        # elif robot_x > (self.field_x - 15):
-        #     vector_result[0] = vector_result[0] + (gain*(1/(((self.field_x - 15) - robot_x)**2)))
+        if self.consider_walls:
+            if robot_x < 10 and robot_x != 0:
+                vector_result[0] = vector_result[0] - 15 # (gain*(1/((robot_x)**2)))
+            elif robot_x > (self.field_x - 10):
+                vector_result[0] = vector_result[0] + 15 # (gain*(1/(((self.field_x - 15) - robot_x)**2)))
 
-        # if robot_y < 15:
-        #     vector_result[1] = vector_result[1] + (gain*(1/((robot_y)**2)))
-        # elif robot_y > (self.field_y - 15):
-        #     vector_result[1] = vector_result[1] + (gain*(1/(((self.field_y - 15) - robot_y)**2)))
+            if robot_y < 10:
+                vector_result[1] = vector_result[1] - 15 # (gain*(1/((robot_y)**2)))
+            elif robot_y > (self.field_y - 10):
+                vector_result[1] = vector_result[1] + 15 # (gain*(1/(((self.field_y - 15) - robot_y)**2)))
 
         return vector_result
 
@@ -133,7 +136,7 @@ class Navigation():
 
     def saveData2JSON(self):
         # Salvar em arquivo JSON ao final da execução
-        with open("field_data.json", "w") as file:
+        with open("simulation_data/field_data.json", "w") as file:
             json.dump(self.data, file, indent=4)
             # print("Dados salvos!")
             # print(self.data)

@@ -8,7 +8,7 @@ def convertRad2Deg(value):
     return value * (180 / np.pi)
 
 # === Carregar os dados ===
-with open("errors_data.json", "r") as f1, open("robot_data.json", "r") as f2:
+with open("simulation_data/errors_data.json", "r") as f1, open("simulation_data/robot_data.json", "r") as f2:
     error_data = json.load(f1)
     robot_data = json.load(f2)
 

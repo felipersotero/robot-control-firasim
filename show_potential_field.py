@@ -46,7 +46,7 @@ def plot_potential_field(X, Y, Z, origin, destination, obstacles):
     plt.show()
 
 # Carregar dados do JSON
-data = load_json("field_data.json")
+data = load_json("simulation_data/field_data.json")
 
 # Extrair coordenadas
 origin = (data[0]["x"], data[0]["y"])  # Ponto de origem
