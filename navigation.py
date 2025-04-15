@@ -3,12 +3,12 @@ import json
 
 class Navigation():
     def __init__(self, Control):
-        self.ball_coordinates = Control.ball_coordinates
-        self.allies_coordinates = Control.allies_coordinates
-        self.allies_direction = Control.allies_direction
-        self.allies_angles = Control.allies_angles
-        self.allies_angles_deg = Control.allies_angles_deg
-        self.enemies_coordinates = Control.enemies_coordinates
+        # self.ball_coordinates = Control.ball_coordinates
+        self.allies_coordinates = Control.main.allies_coordinates
+        self.allies_direction = Control.main.allies_direction
+        self.allies_angles = Control.main.allies_angles
+        self.allies_angles_deg = Control.main.allies_angles_deg
+        self.enemies_coordinates = Control.main.enemies_coordinates
 
         self.vision = Control.vision
         self.test_field_data = Control.test_field_data
@@ -129,7 +129,7 @@ class Navigation():
     def saveData(self, i, x, y):
         self.data[i] = {"x": x, "y": y}
         # print(f"Salvando dados... {x}, {y}")
-        print(self.data)
+        # print(self.data)
 
     def saveData2JSON(self):
         # Salvar em arquivo JSON ao final da execução
