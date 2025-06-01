@@ -21,7 +21,7 @@ class Navigation():
         self.field_x = 150
         self.field_y = 130
 
-        self.consider_walls = True
+        self.consider_walls = False
 
     # Funções de tratamento de dados
     def convertXValues(self, value):
@@ -61,13 +61,20 @@ class Navigation():
             for i in range(3):
                 self.allies_angles_deg[i] = self.convertRad2Deg(self.allies_angles[i])
 
+    # FUNÇÕES DE NAVEGAÇÃO POR CAMPOS POTENCIAIS
     def calculateAttractiveForce(self, gain, source_coordinates, target_coordinates):
         vector = [target_coordinates[0] - source_coordinates[0], target_coordinates[1] - source_coordinates[1]]
         mod = np.linalg.norm(vector)
         vector_norm = vector/mod
 
-        vector_result = gain*mod*vector_norm
+        # Goodrich
+        # vector_result = gain*200*vector_norm
 
+        # if mod <= 50:
+        #     vector_result = gain*mod*vector_norm
+
+        # Goodrich adaptado
+        vector_result = gain*mod*vector_norm
         if mod <= 20:
             vector_result = gain*20*vector_result
 
@@ -84,6 +91,7 @@ class Navigation():
             mod = np.linalg.norm(vector)
             vector_norm = vector/mod
 
+            # Goodrich adaptado
             if mod <= area:
                vector_result = vector_result + (gain*(1/(mod**2))*vector_norm)
 
@@ -120,13 +128,13 @@ class Navigation():
             if (self.saving): self.saveData(i, enemy[0], enemy[1])
 
         repulsiveForce = self.calculateRepulsiveForces(4000, 40, self.allies_coordinates[robotId], obstacles_coordinates)
-
         resulting_force = attractiveForce - repulsiveForce
 
         if (self.saving): self.saveData(5, resulting_force[0], resulting_force[1])
-        # self.saveData(5, 1, 1)
 
         return resulting_force
+
+    # FUNÇÕES DE NAVEGAÇÃO POR GRIDS
 
     # Funções para salvar dados
     def saveData(self, i, x, y):

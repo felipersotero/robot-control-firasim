@@ -12,6 +12,8 @@ from navigation import Navigation
 import logging
 import numpy as np
 import time
+import json
+import os
 from queue import Queue
 import threading
 from interface_gui import start_gui  # importa a interface
@@ -30,6 +32,18 @@ class Main():
         self.e_alpha = 0
         self.e_beta = 0
         
+        # JSON com os dados
+        self.simulation_data = {
+            "robot_blue_0": {"x": [], "y": [], "theta": []},
+            "robot_yellow_0": {"x": [], "y": [], "theta": []},
+            "robot_yellow_1": {"x": [], "y": [], "theta": []},
+            "robot_yellow_2": {"x": [], "y": [], "theta": []},
+            "ball": {"x": [], "y": []},
+            "errors": {"e_rho": [], "e_alpha": [], "e_beta": []},
+            "time": [],
+            "constants": {"k_rho": 1, "k_alpha": 1, "k_beta": 1}
+        }
+
         # Ativa/Desativa o salvamento dos dados no JSON
         self.saving = True
 
@@ -40,12 +54,6 @@ class Main():
         # Ativa comunicação para controle dos robôs yellow e blue
         self.yellow_control = ProtoControl(team_color_yellow=True, control_ip="127.0.0.1", control_port=20011)
         self.blue_control = ProtoControl(team_color_yellow=False, control_ip="127.0.0.1", control_port=20011)
-
-        # self.yellow_replacer = ReplacerComm(team_color_yellow=True, replacer_ip="127.0.0.1", replacer_port=20011)
-        # self.blue_replacer = ReplacerComm(team_color_yellow=False, replacer_ip="127.0.0.1", replacer_port=20011)
-
-        self.yellow_replacer = ReplacerComm(team_color_yellow=True)
-        self.blue_replacer = ReplacerComm(team_color_yellow=False)
 
         # Ativa comunicação para pegar dados do campo e dos robôs
         self.test_field_data = FieldData()
@@ -69,12 +77,6 @@ class Main():
 
         self.running = True  # Flag para manter execução
         self.pause = False
-
-        self.robot_set = EntityData()
-
-        self.robot_set.position.x = 0.1
-        self.robot_set.position.y = 0.1
-        self.robot_set.position.theta = 0.0
 
         # Chama funções de execução
         self.runEverything()
@@ -124,34 +126,96 @@ class Main():
 
                 # self.showFieldData()
 
+    # Função para salvar dados
+    def saveData(self):
+        # allies_coord [[61.78348970595125, 65.00000000000115], [124.99999999999997, 65.0], [144.99999999999997, 65.0]]
+        # allies_direc [[1.0, 0.0], [1.0, 0.0], [1.0, 0.0]]
+        # ball_coord   [55.875966776287, 65.0000002906541]
+        # time         0.04382753372192383
+
+        # self.simulation_data = {
+        #     "robot_blue_0": {"x": [], "y": [], "theta": []},
+        #     "robot_yellow_0": {"x": [], "y": [], "theta": []},
+        #     "robot_yellow_1": {"x": [], "y": [], "theta": []},
+        #     "robot_yellow_2": {"x": [], "y": [], "theta": []},
+        #     "ball": {"x": [], "y": []},
+        #     "errors": {"e_rho": [], "e_alpha": [], "e_beta": []},
+        #     "time": [],
+        #     "constants": {"k_rho": 1, "k_alpha": 1, "k_beta": 1}
+        # }
+
+        self.simulation_data["robot_blue_0"]["x"].append(self.allies_coordinates[0][0])
+        self.simulation_data["robot_blue_0"]["y"].append(self.allies_coordinates[0][1])
+        self.simulation_data["robot_blue_0"]["theta"].append(self.allies_direction[0])
+
+        self.simulation_data["robot_yellow_0"]["x"].append(self.enemies_coordinates[0][0])
+        self.simulation_data["robot_yellow_0"]["y"].append(self.enemies_coordinates[0][1])
+        self.simulation_data["robot_yellow_0"]["theta"].append(self.allies_direction[0])
+
+        self.simulation_data["robot_yellow_1"]["x"].append(self.enemies_coordinates[1][0])
+        self.simulation_data["robot_yellow_1"]["y"].append(self.enemies_coordinates[1][1])
+        self.simulation_data["robot_yellow_1"]["theta"].append(self.allies_direction[1])
+
+        self.simulation_data["robot_yellow_2"]["x"].append(self.enemies_coordinates[2][0])
+        self.simulation_data["robot_yellow_2"]["y"].append(self.enemies_coordinates[2][1])
+        self.simulation_data["robot_yellow_2"]["theta"].append(self.allies_direction[2])
+
+        self.simulation_data["ball"]["x"].append(self.ball_coordinates[0])
+        self.simulation_data["ball"]["y"].append(self.ball_coordinates[1])
+
+        self.simulation_data["errors"]["e_rho"].append(self.e_rho)
+        self.simulation_data["errors"]["e_alpha"].append(self.e_alpha)
+        self.simulation_data["errors"]["e_beta"].append(self.e_beta)
+
+        self.simulation_data["time"].append(self.current_time)
+
+    def generateFileName(self):
+        i = 0
+        while True:
+            if i == 0:
+                nome = "simulation_data.json"
+            else:
+                nome = "simulation_data-"+str(i)+".json"
+
+            print(nome)
+            caminho = os.path.join("./simulation_data", nome)
+            print(caminho)
+            if not os.path.exists(caminho):
+                print(caminho)
+                return caminho
+            i += 1
+
+    def saveDataToJson(self):
+
+        file_name = self.generateFileName()
+
+        with open(file_name, "w") as file:
+            json.dump(self.simulation_data, file, indent=4)
+
     # CRIAÇÃO DAS FUNÇÕES
 
     def runEverything(self):
+
+        self.start_time = time.time()
+
         try:
             while self.running:
+                self.current_time = time.time() - self.start_time
+                print(self.current_time)
+
                 if not self.pause:
                     # self.getFieldData()
-                    # print(f"{self.ball_coordinates}")
-                    # print(f"{self.allies_coordinates[0]}")
-
                     wr, wl = self.control.processControl(robotId=0, mode=self.mode, func=self.getFieldData)
                     # print(f"wr = {round(wr, 2)}, wl = {round(wl, 2)}")
+
                     self.blue_control.transmit_robot(0, wl, wr)
 
-                    # wr1, wl1 = self.control.processControl(robotId=1, mode=self.mode, func=self.getFieldData)
-                    # self.blue_control.transmit_robot(1, wl1, wr1)
-
-                    # wr2, wl2 = self.control.processControl(robotId=2, mode=self.mode, func=self.getFieldData)
-                    # self.blue_control.transmit_robot(2, wl2, wr2)
-
                     if self.enemies_actives:
-                       self.yellow_control.transmit_robot(0, 0, 2)
-                       self.yellow_control.transmit_robot(1, 5, 2)
-                       self.yellow_control.transmit_robot(2, 4, 0)
+                       self.yellow_control.transmit_robot(0, 0, 4)
+                       self.yellow_control.transmit_robot(1, 8, 3)
+                       self.yellow_control.transmit_robot(2, 6, 1)
 
-                    # else:
-                    #     self.yellow_replacer.place_team([(self.robot_set, 0)])
-
+                    self.saveData()
                     time.sleep(0.01)
 
                 else:
@@ -161,15 +225,19 @@ class Main():
         except KeyboardInterrupt:
             self.blue_control.stop_team()
             self.yellow_control.stop_team()
+
             
             logging.info("Ending")
 
             if self.saving:
-                self.control.saveData2JSON()
-                self.control.saveData2JSONErrors()
-                self.control.saveData2JSONConstants()
-                # self.control.saveData2JSONObjects()
-                self.navigation.saveData2JSON()
+
+                self.saveDataToJson()
+
+                # self.control.saveData2JSON()
+                # self.control.saveData2JSONErrors()
+                # self.control.saveData2JSONConstants()
+                # # self.control.saveData2JSONObjects()
+                # self.navigation.saveData2JSON()
 
     def stop(self):
         print("Encerrando execução com segurança...")

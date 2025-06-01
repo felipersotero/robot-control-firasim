@@ -9,20 +9,9 @@ class Control():
     def __init__(self, Main):
 
         self.main = Main
-        # self.ball_coordinates = Main.ball_coordinates
-
-        # self.ball_coordinates = Main.ball_coordinates
-
-        # self.allies_coordinates = Main.allies_coordinates
-        # self.allies_direction = Main.allies_direction
-        # self.allies_angles = Main.allies_angles
-        # self.allies_angles_deg = Main.allies_angles_deg
-        # self.enemies_coordinates = Main.enemies_coordinates
 
         self.vision = Main.vision
         self.test_field_data = Main.test_field_data
-
-        # self.getFieldData = Main.getFieldData
         self.saving = Main.saving
 
         # Instância da classe Navigation
@@ -77,11 +66,31 @@ class Control():
         print("DIRECT: ", self.main.allies_direction)
         print("FOES: ", self.main.enemies_coordinates)
 
+    def speedLimiter(self, wr, wl):
+        w_lim = 40
+        w_max = max(abs(wr), abs(wl))
+
+        # Sempre mantendo velocidade máxima
+        # if w_max < (w_lim):
+        #     w_lim = w_max
+
+        # if w_max == 0:
+        #     wr = 0
+        #     wl = 0
+        # else:
+        #     wr = (wr/w_max)*w_lim
+        #     wl = (wl/w_max)*w_lim
+
+        # Limitando apenas para velocidades mais altas
+        if w_max > w_lim:
+            wr = (wr/w_max)*w_lim
+            wl = (wl/w_max)*w_lim
+
+        return wr, wl
+    
     # Funções principais de controle
     def processControl(self, robotId, mode, func):
         func()
-        
-        # print("==================")
         # self.showFieldData()
 
         if mode == 0:
@@ -112,9 +121,7 @@ class Control():
                     angle_ball = abs(angle_ball) - np.pi
 
             # print(f"rho: {round(dist_ball, 2)} cm || area: {area} || alpha: {round(self.convertRad2Deg(angle_ball), 2)} ° || beta: {round(self.convertRad2Deg(angle_to_goal), 2)} ° || gamma: {round(self.convertRad2Deg(gamma), 2)} ° || theta_g: {round(self.convertRad2Deg(theta_g), 2)} °")
-
             angle_to_goal = 0
-
             # print(self.main.convertRad2Deg(angle_to_goal))
             
             # Chama função para aplicar controle
@@ -184,8 +191,8 @@ class Control():
 
     def controlRobot(self, rho, alpha, beta, area):
         self.kr = 0.8
-        self.ka = 14
-        self.kb = -1.5
+        self.ka = 8
+        self.kb = -3
 
         if abs(alpha) > ((np.pi)/4):
             self.kr = 0.2
@@ -196,11 +203,6 @@ class Control():
             self.kr = -self.kr
             self.ka = -self.ka
             self.kb = -self.kb
-
-        # if rho < 8:
-        #     kr = 3
-        #     ka = 1
-        #     kb = -2.5
 
         v = self.kr*rho
         w = self.ka*alpha + self.kb*beta
@@ -213,6 +215,8 @@ class Control():
         else:
             wr = (v/self.r) + ((w*self.L)/(2*self.r))
             wl = (v/self.r) - ((w*self.L)/(2*self.r))
+
+        wr, wl = self.speedLimiter(wr, wl)
 
         return wr, wl
 
