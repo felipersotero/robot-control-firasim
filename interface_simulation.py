@@ -11,10 +11,12 @@ PASTA_DADOS = "./simulation_data"
 def listar_arquivos_json():
     return [f for f in os.listdir(PASTA_DADOS) if f.endswith(".json")]
 
-def modo_1(canvas_frame, slider_frame, arquivo_json):
+def modo_1(canvas_frame, slider_frame, arquivo_json, controles_frame):
     for widget in canvas_frame.winfo_children():
         widget.destroy()
     for widget in slider_frame.winfo_children():
+        widget.destroy()
+    for widget in controles_frame.winfo_children():
         widget.destroy()
 
     caminho = os.path.join(PASTA_DADOS, arquivo_json)
@@ -41,7 +43,7 @@ def modo_1(canvas_frame, slider_frame, arquivo_json):
     ax.plot(x_rb, y_rb, color='blue', label="Trajetória Robô Azul 0")
 
     if x_ball and y_ball:
-        ax.plot(x_ball[0], y_ball[0], 'o', color='darkorange', markersize=8, label="Início Bola")
+        ax.plot(x_ball[0], y_ball[0], 'o', color='darkorange', markersize=8, alpha=0.3, label="Bola (inicial)")
 
     # Desenha seta inicial
     escala = 5
@@ -104,13 +106,15 @@ def modo_1(canvas_frame, slider_frame, arquivo_json):
 
     ttk.Label(slider_frame, text=f"{tempos[-1]:.2f}").pack(side="left", padx=5)
 
-def modo_2(canvas_frame, slider_frame, arquivo_json):
+def modo_2(canvas_frame, slider_frame, arquivo_json, controles_frame):
     import numpy as np
     from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
     for widget in canvas_frame.winfo_children():
         widget.destroy()
     for widget in slider_frame.winfo_children():
+        widget.destroy()
+    for widget in controles_frame.winfo_children():
         widget.destroy()
 
     caminho = os.path.join(PASTA_DADOS, arquivo_json)
@@ -123,7 +127,7 @@ def modo_2(canvas_frame, slider_frame, arquivo_json):
     e_beta = [v * 180 / np.pi for v in data["errors"]["e_beta"]]
 
     fig, axs = plt.subplots(1, 3, figsize=(15, 4))
-    titles = ["Erro ρ", "Erro α (graus)", "Erro β (graus)"]
+    titles = ["Erro ρ (cm)", "Erro α (graus)", "Erro β (graus)"]
     dados = [e_rho, e_alpha, e_beta]
     marcadores = []
 
@@ -160,6 +164,289 @@ def modo_2(canvas_frame, slider_frame, arquivo_json):
 
     ttk.Label(slider_frame, text=f"{tempos[-1]:.2f}").pack(side="left", padx=5)
 
+def modo_3(canvas_frame, slider_frame, arquivo_json, controles_frame):
+    import numpy as np
+    from matplotlib.patches import Rectangle
+    from matplotlib.transforms import Affine2D
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+    for widget in canvas_frame.winfo_children():
+        widget.destroy()
+    for widget in slider_frame.winfo_children():
+        widget.destroy()
+    for widget in controles_frame.winfo_children():
+        controles_frame.pack(side="left", fill="y", padx=10, pady=10)
+        widget.destroy()
+
+    # Criar variáveis de controle
+    yellow0_var = tk.BooleanVar(value=True)
+    yellow1_var = tk.BooleanVar(value=True)
+    yellow2_var = tk.BooleanVar(value=True)
+
+    # Adicionar checkboxes ao painel lateral
+    ttk.Label(controles_frame, text="Exibir Robôs Amarelos").pack(anchor="w")
+    ttk.Checkbutton(controles_frame, text="0", variable=yellow0_var).pack(anchor="w")
+    ttk.Checkbutton(controles_frame, text="1", variable=yellow1_var).pack(anchor="w")
+    ttk.Checkbutton(controles_frame, text="2", variable=yellow2_var).pack(anchor="w")
+
+    def atualizar_amarelos():
+        i = slider.get()  # posição atual do slider
+        visiveis = [yellow0_var.get(), yellow1_var.get(), yellow2_var.get()]
+        for j in range(3):
+            if visiveis[j] and yellow_data[j]:
+                x_ = yellow_data[j]["x"][:i+1]
+                y_ = yellow_data[j]["y"][:i+1]
+                trajetorias_amarelos[j].set_data(x_, y_)
+            else:
+                trajetorias_amarelos[j].set_data([], [])
+
+        canvas.draw()
+
+    ttk.Button(controles_frame, text="Atualizar", command=atualizar_amarelos).pack(pady=10)
+
+    # Leitura do arquivo
+    caminho = os.path.join(PASTA_DADOS, arquivo_json)
+    with open(caminho, "r") as f:
+        data = json.load(f)
+
+    x_rb = data["robot_blue_0"]["x"]
+    y_rb = data["robot_blue_0"]["y"]
+    theta_rb = data["robot_blue_0"]["theta"]
+
+    yellow_data = []
+    for i in range(3):
+        try:
+            yellow_data.append({
+                "x": data[f"robot_yellow_{i}"]["x"],
+                "y": data[f"robot_yellow_{i}"]["y"],
+                "theta": data[f"robot_yellow_{i}"]["theta"]
+            })
+        except KeyError:
+            yellow_data.append(None)
+
+    x_ball = data["ball"]["x"]
+    y_ball = data["ball"]["y"]
+    tempos = data["time"]
+
+
+    lado = 7.5  # tamanho do quadrado
+
+    fig, ax = plt.subplots(figsize=(7.5, 6))
+    ax.set_xlim(0, 150)
+    ax.set_ylim(0, 130)
+    ax.set_aspect(150/130)
+    ax.set_title("Modo 3 - Representação com Quadrados")
+    ax.set_xlabel("X")
+    ax.set_ylabel("Y")
+
+    # Trajetória do robô azul
+    trajetoria_azul, = ax.plot([], [], color='blue', label="Trajetória Robô Azul")
+
+    trajetoria_bola, = ax.plot([], [], color='darkorange', linestyle='--', label="Trajetória Bola")
+
+    # trajetorias_amarelos = []
+    # for i in range(3):
+    #     if amarelos_visiveis[i] and yellow_data[i]:
+    #         line, = ax.plot([], [], color='goldenrod', linestyle='-', label=f"Trajetória Amarelo {i}")
+    #     else:
+    #         line, = ax.plot([], [])  # vazio
+    #     trajetorias_amarelos.append(line)
+
+    trajetorias_amarelos = []
+    for i in range(3):
+        line, = ax.plot([], [], color='goldenrod', linestyle='-', label=f"Trajetória Amarelo {i}")
+        trajetorias_amarelos.append(line)
+
+    # Bola (posição inicial)
+    if x_ball and y_ball:
+        ax.plot(x_ball[0], y_ball[0], 'o', color='darkorange', markersize=8, label="Bola")
+
+    from matplotlib.patches import Circle
+
+    bola_raio = 2.5
+    bola_circulo = Circle((x_ball[0], y_ball[0]), radius=bola_raio,
+                        color='darkorange', ec='black', zorder=5)
+    ax.add_patch(bola_circulo)
+
+    # Robôs amarelos (posição inicial)
+    visiveis_iniciais = [yellow0_var.get(), yellow1_var.get(), yellow2_var.get()]
+
+    for i in range(3):
+        if not visiveis_iniciais[i]:
+            continue
+        try:
+            x_y = data[f"robot_yellow_{i}"]["x"][0], data[f"robot_yellow_{i}"]["y"][0]
+            theta = data[f"robot_yellow_{i}"]["theta"][0]
+            dx, dy = theta
+            angle_rad = np.arctan2(dy, dx)
+            t = Affine2D().rotate_around(x_y[0], x_y[1], angle_rad)
+            rect = Rectangle((x_y[0] - lado / 2, x_y[1] - lado / 2), lado, lado,
+                            transform=t + ax.transData, color='yellow', alpha=0.8)
+            ax.add_patch(rect)
+        except KeyError:
+            continue
+
+
+    # Robô azul (quadrado inicial)
+    x0, y0 = x_rb[0], y_rb[0]
+    dx0, dy0 = theta_rb[0]
+    ang0 = np.arctan2(dy0, dx0)
+    trans = Affine2D().rotate_around(x0, y0, ang0)
+    azul_quad = Rectangle((x0 - lado / 2, y0 - lado / 2), lado, lado,
+                          transform=trans + ax.transData, color='blue', alpha=0.8, label="Robô Azul")
+    ax.add_patch(azul_quad)
+    ax.legend()
+
+    canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill="both", expand=True)
+
+    # SLIDER
+    ttk.Label(slider_frame, text=f"{tempos[0]:.2f}").pack(side="left", padx=5)
+    slider_val = ttk.Label(slider_frame, text=f"t = {tempos[0]:.2f} s")
+    slider_val.pack(side="left")
+
+
+    def on_slider_move(val):
+        i = int(val)
+        if i >= len(x_rb): return
+
+        # Atualiza posição e orientação do robô azul
+        x, y = x_rb[i], y_rb[i]
+        dx, dy = theta_rb[i]
+        angle = np.arctan2(dy, dx)
+        azul_quad.set_xy((x - lado / 2, y - lado / 2))
+        azul_quad.set_transform(Affine2D().rotate_around(x, y, angle) + ax.transData)
+
+        # Atualiza trajetória do azul até índice i
+        trajetoria_azul.set_data(x_rb[:i+1], y_rb[:i+1])
+
+        # Atualiza trajetória da bola
+        trajetoria_bola.set_data(x_ball[:i+1], y_ball[:i+1])
+
+        bola_circulo.center = (x_ball[i], y_ball[i])
+
+        visiveis = [yellow0_var.get(), yellow1_var.get(), yellow2_var.get()]
+        for j in range(3):
+            if visiveis[j] and yellow_data[j]:
+                x_ = yellow_data[j]["x"][:i+1]
+                y_ = yellow_data[j]["y"][:i+1]
+                trajetorias_amarelos[j].set_data(x_, y_)
+            else:
+                trajetorias_amarelos[j].set_data([], [])
+
+
+        slider_val.config(text=f"t = {tempos[i]:.2f} s")
+        canvas.draw()
+
+    ax.legend(loc="upper right")
+
+
+    slider = tk.Scale(slider_frame, from_=0, to=len(tempos) - 1,
+                      orient="horizontal", length=500,
+                      command=on_slider_move, showvalue=False)
+    slider.pack(side="left", fill="x", expand=True)
+    ttk.Label(slider_frame, text=f"{tempos[-1]:.2f}").pack(side="left", padx=5)
+
+def modo_4(canvas_frame, slider_frame, controles_frame, arquivo_json):
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+    from mpl_toolkits.mplot3d import Axes3D
+
+    # Limpa canvas
+    for widget in canvas_frame.winfo_children():
+        widget.destroy()
+    for widget in controles_frame.winfo_children():
+        widget.destroy()
+    for widget in slider_frame.winfo_children():
+        widget.destroy()
+
+    # Carrega dados
+    caminho = os.path.join(PASTA_DADOS, arquivo_json)
+    with open(caminho, "r") as f:
+        data = json.load(f)
+
+    azul = (data["robot_blue_0"]["x"][0], data["robot_blue_0"]["y"][0])
+    bola = (data["ball"]["x"][0], data["ball"]["y"][0])
+    amarelos = []
+    for i in range(3):
+        try:
+            amarelo = (data[f"robot_yellow_{i}"]["x"][0], data[f"robot_yellow_{i}"]["y"][0])
+            amarelos.append(amarelo)
+        except:
+            continue
+
+    # Constantes
+    k_attr = 1.0
+    k_rep = 100
+    fator_proximidade = 1
+
+    # Malha do campo
+    x = np.linspace(0, 150, 100)
+    y = np.linspace(0, 130, 100)
+    X, Y = np.meshgrid(x, y)
+
+    def campo_atrativo(X, Y):
+        dist = np.sqrt((X - bola[0])**2 + (Y - bola[1])**2)
+        campo = np.where(dist > 20, k_attr * dist, k_attr * 20)
+        return campo
+
+    def campo_repulsivo(X, Y):
+        campo = np.zeros_like(X)
+        for ox, oy in amarelos:
+            d = np.sqrt((X - ox)**2 + (Y - oy)**2)
+            efeito = np.where(d < 40, k_rep / (d**2 + 1e-5), 0)
+            efeito = np.where(d < 10, efeito * fator_proximidade, efeito)
+            campo += efeito
+        return campo
+
+    # Checkboxes para controle
+    usar_attr = tk.BooleanVar(value=True)
+    usar_rep = tk.BooleanVar(value=True)
+
+    ttk.Checkbutton(controles_frame, text="Campo Atrativo", variable=usar_attr).pack(anchor="w")
+    ttk.Checkbutton(controles_frame, text="Campo Repulsivo", variable=usar_rep).pack(anchor="w")
+
+    def atualizar_campo():
+        Z = np.zeros_like(X)
+        if usar_attr.get():
+            Z += campo_atrativo(X, Y)
+        if usar_rep.get():
+            Z += campo_repulsivo(X, Y)
+
+        ax.cla()
+        ax.plot_surface(X, Y, Z, cmap="viridis", alpha=0.9, edgecolor='none')
+
+        # Pontos dos robôs e bola
+        ax.scatter(azul[0], azul[1], 0, c='blue', s=50, label='Robô Azul')
+        ax.scatter(bola[0], bola[1], 0, c='darkorange', s=50, label='Bola')
+        for i, (x_am, y_am) in enumerate(amarelos):
+            ax.scatter(x_am, y_am, 0, c='yellow', edgecolor='black', s=50, label=f'Amarelo {i}')
+
+        ax.set_xlim(0, 150)
+        ax.set_ylim(0, 130)
+        ax.set_zlim(0, None)
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Potencial")
+        ax.set_title("Campo Potencial Virtual")
+        ax.view_init(elev=40, azim=210)
+        ax.legend(loc='upper right')
+        canvas.draw()
+
+    # Botão para aplicar
+    ttk.Button(controles_frame, text="Atualizar Campo", command=atualizar_campo).pack(pady=10)
+
+    # Criação da figura
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(111, projection="3d")
+    canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill="both", expand=True)
+
+    atualizar_campo()
+
 def criar_interface():
     root = tk.Tk()
     root.title("Visualização de Simulações")
@@ -176,7 +463,7 @@ def criar_interface():
 
     ttk.Label(top_frame, text="Modo:").pack(side="left", padx=5)
     modo_var = tk.StringVar(value="modo 1")
-    modo_menu = ttk.OptionMenu(top_frame, modo_var, "modo 1", "modo 1", "modo 2", "modo 3")
+    modo_menu = ttk.OptionMenu(top_frame, modo_var, "modo 1", "modo 1", "modo 2", "modo 3", "modo 4")
     modo_menu.pack(side="left", padx=5)
 
     def rodar_simulacao():
@@ -184,9 +471,13 @@ def criar_interface():
         arq = arquivo_var.get()
 
         if modo == "modo 1":
-            modo_1(canvas_frame, slider_frame, arq)
+            modo_1(canvas_frame, slider_frame, arq, controles_frame)
         elif modo == "modo 2":
-            modo_2(canvas_frame, slider_frame, arq)
+            modo_2(canvas_frame, slider_frame, arq, controles_frame)
+        elif modo == "modo 3":
+            modo_3(canvas_frame, slider_frame, arq, controles_frame)
+        elif modo == "modo 4":
+            modo_4(canvas_frame, slider_frame, controles_frame, arq)
 
     ttk.Button(top_frame, text="Rodar Simulação", command=rodar_simulacao).pack(side="left", padx=10)
 
@@ -195,6 +486,11 @@ def criar_interface():
 
     slider_frame = ttk.Frame(root)
     slider_frame.pack(fill="x", padx=10, pady=5)
+
+    # Frame lateral para controles adicionais
+    # Frame lateral para controles adicionais
+    controles_frame = ttk.Frame(root)
+    controles_frame.pack(side="left", fill="y", padx=5, pady=5)
 
     root.mainloop()
 
