@@ -27,6 +27,10 @@ class Control():
         self.robot_positions = []  # Lista para armazenar os dados
         self.robot_errors = []  # Lista para armazenar os dados
         self.data = [None, None, None, None, None, None, None, None, None]
+
+        # Constantes de controle
+        # self.kr = self.main.kr
+
     # Funções de tratamento de dados
 
     def angleBetweenObjects(self, target_coordinates, source_coordinates, source_direction):
@@ -106,110 +110,113 @@ class Control():
             dx_theta_g = self.goal_coordinates[0] - self.main.ball_coordinates[0]
             theta_g = np.arctan2(dy_theta_g, dx_theta_g)
 
-            if (abs(gamma) + abs(theta_g)) > (np.pi):
-                angle_to_goal = 2*(np.pi) - abs(gamma) - abs(theta_g)
-            else:
-                angle_to_goal = abs(gamma) + abs(theta_g)
+            # if (abs(gamma) + abs(theta_g)) > (np.pi):
+            #     angle_to_goal = 2*(np.pi) - abs(gamma) - abs(theta_g)
+            # else:
+            #     angle_to_goal = abs(gamma) + abs(theta_g)
+
+            angle_to_goal = theta_g - gamma
+            angle_to_goal = (angle_to_goal + np.pi) % (2 * np.pi) - np.pi
 
             area = 1 # 1 - bola à frente | 2 - bola atrás
 
             if abs(angle_ball) > (np.pi)/2:
                 area = 2
                 if angle_ball >= 0:
-                    angle_ball = np.pi - angle_ball
+                    angle_ball = -(np.pi - angle_ball)
+                    # angle_ball = abs(angle_ball) - np.pi
                 else:
-                    angle_ball = abs(angle_ball) - np.pi
+                    # angle_ball = abs(angle_ball) - np.pi
+                    angle_ball = np.pi - abs(angle_ball)
 
-            # print(f"rho: {round(dist_ball, 2)} cm || area: {area} || alpha: {round(self.convertRad2Deg(angle_ball), 2)} ° || beta: {round(self.convertRad2Deg(angle_to_goal), 2)} ° || gamma: {round(self.convertRad2Deg(gamma), 2)} ° || theta_g: {round(self.convertRad2Deg(theta_g), 2)} °")
-            angle_to_goal = 0
+            if area == 2:
+                dist_ball = -dist_ball
+                # angle_to_goal = -angle_to_goal
+            
+            # print(f"rho: {round(dist_ball, 2)} cm || area: {area} || alpha: {round(self.main.convertRad2Deg(angle_ball), 2)} ° || beta: {round(self.main.convertRad2Deg(angle_to_goal), 2)} ° || gamma: {round(self.main.convertRad2Deg(gamma), 2)} ° || theta_g: {round(self.main.convertRad2Deg(theta_g), 2)} °")
+            print(f"rho: {round(dist_ball, 2)} cm || area: {area} || alpha: {round(self.main.convertRad2Deg(angle_ball), 2)} ° || beta: {round(self.main.convertRad2Deg(angle_to_goal), 2)} °")
+            # angle_to_goal = 0
+            # print(self.main.convertRad2Deg(angle_ball))
             # print(self.main.convertRad2Deg(angle_to_goal))
             
             # Chama função para aplicar controle
             wr, wl = self.controlRobot(dist_ball, angle_ball, angle_to_goal, area)
 
             if (self.saving):
-                self.savePosition(self.main.allies_coordinates[robotId][0], self.main.allies_coordinates[robotId][1], self.main.allies_direction[robotId])
-
-                with self.main.lock:
-                    self.main.e_rho = 0 - abs(dist_ball)
-                    self.main.e_alpha = 0 - abs(angle_ball)
-                    self.main.e_beta = 0 - abs(angle_to_goal)
-
-                self.saveErrors(self.main.e_rho, self.main.e_alpha, self.main.e_beta)
-
-                # Salvamento dos dados dos objetos
-                self.saveDataObjects(0, self.main.allies_coordinates[robotId][0], self.main.allies_coordinates[robotId][1])
-                self.saveDataObjects(1, self.main.ball_coordinates[0], self.main.ball_coordinates[1])
-
-                for i, enemy in enumerate(self.main.enemies_coordinates, start=2):
-                    self.saveDataObjects(i, enemy[0], enemy[1])
-                
-                self.saveDataObjects(5, np.cos(self.main.allies_angles[robotId]), np.sin(self.main.allies_angles[robotId])) # theta
-                self.saveDataObjects(6, dist_ball*np.cos(angle_ball), dist_ball*np.sin(angle_ball)) # rho e alfa
-                self.saveDataObjects(7, np.cos(angle_to_goal), np.sin(angle_to_goal)) # beta
+                self.main.e_rho = 0 - abs(dist_ball)
+                self.main.e_alpha = 0 - abs(angle_ball)
+                self.main.e_beta = 0 - abs(angle_to_goal)
 
         elif mode == 1:
             # print("Modo com Navegação")
-            vector = self.navigation.createPotentialField(robotId=robotId)
+            vector = self.navigation.createPotentialField(robotId=robotId, activeEnemies = [1, 0, 0])
 
             mod = np.linalg.norm(vector)
             angle = self.angleBetweenObjects(self.main.allies_coordinates[robotId] + vector, self.main.allies_coordinates[robotId], self.main.allies_direction[robotId])
+
+            dist_ball = self.distanceBetweenObjects(self.main.ball_coordinates, self.main.allies_coordinates[robotId])
+            angle_ball = self.angleBetweenObjects(self.main.ball_coordinates, self.main.allies_coordinates[robotId], self.main.allies_direction[robotId])
+
+            # Ajuste do ângulo robô⁻bola
+
+            if abs(angle_ball) > (np.pi)/2:
+                if angle_ball >= 0:
+                    angle_ball = -(np.pi - angle_ball)
+                else:
+                    angle_ball = np.pi - abs(angle_ball)
 
             area = 1 # 1 - alvo à frente | 2 - alvo atrás
 
             if abs(angle) > (np.pi)/2:
                 area = 2
                 if angle >= 0:
-                    angle = np.pi - angle
+                    angle = -(np.pi - angle)
                 else:
-                    angle = abs(angle) - np.pi
+                    angle = np.pi - abs(angle)
+
+            if area == 2:
+                mod = -mod
 
             wr, wl = self.controlRobot(mod, angle, 0, area)
 
             if (self.saving):
-                self.savePosition(self.main.allies_coordinates[robotId][0], self.main.allies_coordinates[robotId][1], self.main.allies_direction[robotId])
+                self.main.e_rho = 0 - abs(mod)
+                self.main.e_alpha = 0 - abs(angle)
+                self.main.e_beta = 0
 
-                with self.main.lock:
-                    self.main.e_rho = 0 - abs(mod)
-                    self.main.e_alpha = 0 - abs(angle)
-                    self.main.e_beta = 0
-
-                self.saveErrors(self.main.e_rho, self.main.e_alpha, self.main.e_beta)
-
-                # Salvamento dos dados dos objetos
-                self.saveDataObjects(0, self.main.allies_coordinates[robotId][0], self.main.allies_coordinates[robotId][1])
-                self.saveDataObjects(1, self.main.ball_coordinates[0], self.main.ball_coordinates[1])
-
-                for i, enemy in enumerate(self.main.enemies_coordinates, start=2):
-                    self.saveDataObjects(i, enemy[0], enemy[1])
-                
-                self.saveDataObjects(5, np.cos(self.main.allies_angles[robotId]), np.sin(self.main.allies_angles[robotId])) # theta
-                # self.saveDataObjects(6, dist_ball*np.cos(angle_ball), dist_ball*np.sin(angle_ball)) # rho e alfa
-                # self.saveDataObjects(7, np.cos(angle_to_goal), np.sin(angle_to_goal)) # beta
+                self.main.dist_rb = 0 - abs(dist_ball)
+                self.main.angle_rb = 0 - abs(angle_ball)
+                self.main.angle_rbg = 0
 
         return wr, wl
 
     def controlRobot(self, rho, alpha, beta, area):
         self.kr = 0.8
-        self.ka = 8
-        self.kb = -3
+        self.ka = 10
+        # self.kb = -3
+        self.kb = 0
 
-        if abs(alpha) > ((np.pi)/4):
-            self.kr = 0.2
-            self.ka = 5
-            self.kb = 0
+        # if abs(alpha) > ((np.pi)/4):
+        #     self.kr = 0.4
+        #     self.ka = 4
+        #     self.kb = -1
 
-        if area == 2:
-            self.kr = -self.kr
-            self.ka = -self.ka
-            self.kb = -self.kb
+        # if abs(alpha) > ((np.pi)/4):
+        #     self.kr = self.kr / 3
+        #     self.ka = self.ka * 1.5
+        #     self.kb = 0
+
+        # if abs(alpha) > ((np.pi)/4):
+        #     self.kr = 0.4
+        #     self.ka = 15
+        #     self.kb = 0
 
         v = self.kr*rho
         w = self.ka*alpha + self.kb*beta
 
         # print(f"v = {v} || w = {w}")
 
-        if (self.main.ball_coordinates[0] > 150) or (self.main.ball_coordinates[0] < 0): # or rho < 9:
+        if (self.main.ball_coordinates[0] > 150) or (self.main.ball_coordinates[0] < 0): # or abs(rho) < 8:
             wr = 0
             wl = 0
         else:
@@ -219,37 +226,3 @@ class Control():
         wr, wl = self.speedLimiter(wr, wl)
 
         return wr, wl
-
-    # Funções para salvar dados
-    def savePosition(self, x, y, theta):
-        self.robot_positions.append({"x": x, "y": y, "theta": theta})
-
-    def saveErrors(self, e_rho, e_alpha, e_beta):
-        self.robot_errors.append({"e_rho": e_rho, "e_alpha": e_alpha, "e_beta": e_beta})
-
-    def saveData2JSON(self):
-        # Salvar em arquivo JSON ao final da execução
-        with open("simulation_data/robot_data.json", "w") as file:
-            json.dump(self.robot_positions, file, indent=4)
-
-    def saveData2JSONErrors(self):
-        # Salvar em arquivo JSON ao final da execução
-        with open("simulation_data/errors_data.json", "w") as file:
-            json.dump(self.robot_errors, file, indent=4)
-
-    def saveData2JSONConstants(self):
-        with open("simulation_data/constants_data.json", "w") as file:
-            json.dump({"kr": self.kr, "ka": self.ka, "kb": self.kb}, file, indent=4)
-
-    # Funções para salvar dados
-    def saveDataObjects(self, i, x, y):
-        self.data[i] = {"x": x, "y": y}
-        # print(f"Salvando dados... {x}, {y}")
-        # print(self.data)
-
-    def saveData2JSONObjects(self):
-        # Salvar em arquivo JSON ao final da execução
-        with open("simulation_data/field_data.json", "w") as file:
-            json.dump(self.data, file, indent=4)
-            # print("Dados salvos!")
-            # print(self.data)

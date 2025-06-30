@@ -27,11 +27,21 @@ class Main():
         self.allies_angles = [None, None, None]
         self.allies_angles_deg = [None, None, None]
         self.enemies_coordinates = [None, None, None]
+        self.enemies_angles = [None, None, None]
+        self.enemies_direction = [None, None, None]
 
         self.e_rho = 0
         self.e_alpha = 0
         self.e_beta = 0
-        
+
+        self.dist_rb = 0
+        self.angle_rb = 0
+        self.angle_rbg = 0
+
+        self.kr = 0
+        self.ka = 0
+        self.kb = 0
+
         # JSON com os dados
         self.simulation_data = {
             "robot_blue_0": {"x": [], "y": [], "theta": []},
@@ -41,14 +51,15 @@ class Main():
             "ball": {"x": [], "y": []},
             "errors": {"e_rho": [], "e_alpha": [], "e_beta": []},
             "time": [],
-            "constants": {"k_rho": 1, "k_alpha": 1, "k_beta": 1}
+            "constants": {"k_rho": self.kr, "k_alpha": self.ka, "k_beta": self.kb},
+            "field_errors": {"dist_rb": [], "angle_rb": [], "angle_rbg": []},
         }
 
         # Ativa/Desativa o salvamento dos dados no JSON
         self.saving = True
 
         # Modo de simulação
-        self.mode = 0 # 0 - controle | 1 - navegação
+        self.mode = 1 # 0 - controle | 1 - navegação
         self.enemies_actives = False
 
         # Ativa comunicação para controle dos robôs yellow e blue
@@ -115,11 +126,17 @@ class Main():
                     self.allies_coordinates[i] = [self.convertXValues(self.test_field_data.robots[i].position.x), self.convertYValues(self.test_field_data.robots[i].position.y)]
                 for i in range(3):
                     self.allies_angles[i] = self.test_field_data.robots[i].position.theta
+
                 for i in range(3):
                     self.enemies_coordinates[i] = [self.convertXValues(self.test_field_data.foes[i].position.x), self.convertYValues(self.test_field_data.foes[i].position.y)]
+                for i in range(3):
+                    self.enemies_angles[i] = self.test_field_data.foes[i].position.theta
 
                 for i in range(3):
                     self.allies_direction[i] = [np.cos(self.allies_angles[i]), (np.sin(self.allies_angles[i]))]
+
+                for i in range(3):
+                    self.enemies_direction[i] = [np.cos(self.enemies_angles[i]), (np.sin(self.enemies_angles[i]))]
 
                 for i in range(3):
                     self.allies_angles_deg[i] = self.convertRad2Deg(self.allies_angles[i])
@@ -128,37 +145,21 @@ class Main():
 
     # Função para salvar dados
     def saveData(self):
-        # allies_coord [[61.78348970595125, 65.00000000000115], [124.99999999999997, 65.0], [144.99999999999997, 65.0]]
-        # allies_direc [[1.0, 0.0], [1.0, 0.0], [1.0, 0.0]]
-        # ball_coord   [55.875966776287, 65.0000002906541]
-        # time         0.04382753372192383
-
-        # self.simulation_data = {
-        #     "robot_blue_0": {"x": [], "y": [], "theta": []},
-        #     "robot_yellow_0": {"x": [], "y": [], "theta": []},
-        #     "robot_yellow_1": {"x": [], "y": [], "theta": []},
-        #     "robot_yellow_2": {"x": [], "y": [], "theta": []},
-        #     "ball": {"x": [], "y": []},
-        #     "errors": {"e_rho": [], "e_alpha": [], "e_beta": []},
-        #     "time": [],
-        #     "constants": {"k_rho": 1, "k_alpha": 1, "k_beta": 1}
-        # }
-
         self.simulation_data["robot_blue_0"]["x"].append(self.allies_coordinates[0][0])
         self.simulation_data["robot_blue_0"]["y"].append(self.allies_coordinates[0][1])
         self.simulation_data["robot_blue_0"]["theta"].append(self.allies_direction[0])
 
         self.simulation_data["robot_yellow_0"]["x"].append(self.enemies_coordinates[0][0])
         self.simulation_data["robot_yellow_0"]["y"].append(self.enemies_coordinates[0][1])
-        self.simulation_data["robot_yellow_0"]["theta"].append(self.allies_direction[0])
+        self.simulation_data["robot_yellow_0"]["theta"].append(self.enemies_direction[0])
 
         self.simulation_data["robot_yellow_1"]["x"].append(self.enemies_coordinates[1][0])
         self.simulation_data["robot_yellow_1"]["y"].append(self.enemies_coordinates[1][1])
-        self.simulation_data["robot_yellow_1"]["theta"].append(self.allies_direction[1])
+        self.simulation_data["robot_yellow_1"]["theta"].append(self.enemies_direction[1])
 
         self.simulation_data["robot_yellow_2"]["x"].append(self.enemies_coordinates[2][0])
         self.simulation_data["robot_yellow_2"]["y"].append(self.enemies_coordinates[2][1])
-        self.simulation_data["robot_yellow_2"]["theta"].append(self.allies_direction[2])
+        self.simulation_data["robot_yellow_2"]["theta"].append(self.enemies_direction[2])
 
         self.simulation_data["ball"]["x"].append(self.ball_coordinates[0])
         self.simulation_data["ball"]["y"].append(self.ball_coordinates[1])
@@ -168,6 +169,11 @@ class Main():
         self.simulation_data["errors"]["e_beta"].append(self.e_beta)
 
         self.simulation_data["time"].append(self.current_time)
+
+        if self.mode == 1:
+            self.simulation_data["field_errors"]["dist_rb"].append(self.dist_rb)
+            self.simulation_data["field_errors"]["angle_rb"].append(self.angle_rb)
+            self.simulation_data["field_errors"]["angle_rbg"].append(self.angle_rbg)
 
     def generateFileName(self):
         i = 0
@@ -201,7 +207,7 @@ class Main():
         try:
             while self.running:
                 self.current_time = time.time() - self.start_time
-                print(self.current_time)
+                # print(self.current_time)
 
                 if not self.pause:
                     # self.getFieldData()
@@ -214,6 +220,8 @@ class Main():
                        self.yellow_control.transmit_robot(0, 0, 4)
                        self.yellow_control.transmit_robot(1, 8, 3)
                        self.yellow_control.transmit_robot(2, 6, 1)
+
+                    # self.yellow_control.transmit_robot(0, 0, 4)
 
                     self.saveData()
                     time.sleep(0.01)

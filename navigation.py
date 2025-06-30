@@ -21,7 +21,7 @@ class Navigation():
         self.field_x = 150
         self.field_y = 130
 
-        self.consider_walls = False
+        self.consider_walls = True
 
     # Funções de tratamento de dados
     def convertXValues(self, value):
@@ -80,39 +80,59 @@ class Navigation():
 
         return vector_result
 
-    def calculateRepulsiveForces(self, gain, area, source_coordinates, obstacles_coordinates):
+    def calculateRepulsiveForces(self, gain, area, source_coordinates, obstacles_coordinates, activeEnemies, ball_coords):
         vector_result = [0, 0]
 
         robot_x = source_coordinates[0]
         robot_y = source_coordinates[1]
 
-        for obstacle in obstacles_coordinates:
-            vector = [obstacle[0] - robot_x, obstacle[1] - robot_y]
-            mod = np.linalg.norm(vector)
-            vector_norm = vector/mod
+        ball_x = ball_coords[0]
+        ball_y = ball_coords[1]
 
-            # Goodrich adaptado
-            if mod <= area:
-               vector_result = vector_result + (gain*(1/(mod**2))*vector_norm)
+        for i, obstacle in enumerate(obstacles_coordinates):
+            if activeEnemies[i] == 1:
+                # print(f"inimigo {i}")
+                vector = [obstacle[0] - robot_x, obstacle[1] - robot_y]
+                mod = np.linalg.norm(vector)
+                vector_norm = vector/mod
 
-            if mod <= (10):
-               vector_result = vector_result + (gain*1000*(1/(mod**2))*vector_norm)
+                # Goodrich adaptado
+                if mod <= area:
+                   vector_result = vector_result + (gain*(1/(mod**2))*vector_norm)
 
-        # Desvio das paredes
+                if mod <= (10):
+                   vector_result = vector_result + (gain*1000*(1/(mod**2))*vector_norm)
+
+                # if mod <= area:
+                #    vector_result = vector_result + (80-mod)*vector_norm
+
+        # Desvio das paredes NOVO
         if self.consider_walls:
             if robot_x < 10 and robot_x != 0:
-                vector_result[0] = vector_result[0] - 15 # (gain*(1/((robot_x)**2)))
+                if not(ball_x < 10):
+                    vector_result[0] = vector_result[0] - 15
+                else:
+                    vector_result[0] = vector_result[0] - 5
             elif robot_x > (self.field_x - 10):
-                vector_result[0] = vector_result[0] + 15 # (gain*(1/(((self.field_x - 15) - robot_x)**2)))
+                if not(ball_x > (self.field_x - 10)):
+                    vector_result[0] = vector_result[0] + 15
+                else:
+                    vector_result[0] = vector_result[0] + 5
 
             if robot_y < 10:
-                vector_result[1] = vector_result[1] - 15 # (gain*(1/((robot_y)**2)))
+                if not(ball_y < 10):
+                    vector_result[1] = vector_result[1] - 15
+                else:
+                    vector_result[1] = vector_result[1] - 5
             elif robot_y > (self.field_y - 10):
-                vector_result[1] = vector_result[1] + 15 # (gain*(1/(((self.field_y - 15) - robot_y)**2)))
-
+                if not(ball_y > (self.field_y - 10)):
+                    vector_result[1] = vector_result[1] + 15
+                else:
+                    vector_result[1] = vector_result[1] + 5
+        
         return vector_result
 
-    def createPotentialField(self, robotId):
+    def createPotentialField(self, robotId, activeEnemies):
         
         self.getFieldData()
 
@@ -127,7 +147,7 @@ class Navigation():
             obstacles_coordinates.append(enemy)
             if (self.saving): self.saveData(i, enemy[0], enemy[1])
 
-        repulsiveForce = self.calculateRepulsiveForces(4000, 40, self.allies_coordinates[robotId], obstacles_coordinates)
+        repulsiveForce = self.calculateRepulsiveForces(4500, 40, self.allies_coordinates[robotId], obstacles_coordinates, activeEnemies, self.ball_coordinates)
         resulting_force = attractiveForce - repulsiveForce
 
         if (self.saving): self.saveData(5, resulting_force[0], resulting_force[1])

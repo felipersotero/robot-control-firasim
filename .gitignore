@@ -1,3 +1,8 @@
 __pycache__/
 lib/
-*.json
+simulation_data/
+old_simulation_data/
+
+static_simulator.py
+
+#*.json

@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 # Pasta onde estão os arquivos JSON
 PASTA_DADOS = "./simulation_data"
+# PASTA_DADOS = "./final_simulation_data"
 
 def listar_arquivos_json():
     return [f for f in os.listdir(PASTA_DADOS) if f.endswith(".json")]
@@ -35,18 +36,20 @@ def modo_1(canvas_frame, slider_frame, arquivo_json, controles_frame):
     fig, ax = plt.subplots(figsize=(7, 6))
     ax.set_xlim(0, 150)
     ax.set_ylim(0, 130)
-    ax.set_aspect(150 / 130)
+    ax.set_aspect('equal', adjustable='box')
+    # ax.set_aspect(150 / 130)
     ax.set_title("Modo 1 - Trajetória do Robô Azul 0")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
 
-    ax.plot(x_rb, y_rb, color='blue', label="Trajetória Robô Azul 0")
+    ax.plot(x_rb, y_rb, color='blue', label="Trajetória Robô")
 
     if x_ball and y_ball:
-        ax.plot(x_ball[0], y_ball[0], 'o', color='darkorange', markersize=8, alpha=0.3, label="Bola (inicial)")
+        ax.plot(x_ball[0], y_ball[0], 'o', color='darkorange', markersize=8, label="Bola")
 
     # Desenha seta inicial
     escala = 5
+
     seta = ax.annotate("",
         xy=(x_rb[0] + theta[0][0] * escala, y_rb[0] + theta[0][1] * escala),
         xytext=(x_rb[0], y_rb[0]),
@@ -126,7 +129,7 @@ def modo_2(canvas_frame, slider_frame, arquivo_json, controles_frame):
     e_alpha = [v * 180 / np.pi for v in data["errors"]["e_alpha"]]
     e_beta = [v * 180 / np.pi for v in data["errors"]["e_beta"]]
 
-    fig, axs = plt.subplots(1, 3, figsize=(15, 4))
+    fig, axs = plt.subplots(3, 1, figsize=(15, 4))
     titles = ["Erro ρ (cm)", "Erro α (graus)", "Erro β (graus)"]
     dados = [e_rho, e_alpha, e_beta]
     marcadores = []
@@ -140,6 +143,9 @@ def modo_2(canvas_frame, slider_frame, arquivo_json, controles_frame):
         # Adiciona ponto marcador inicial
         marcador, = axs[i].plot(tempos[0], dados[i][0], 'ro')
         marcadores.append(marcador)
+
+    # Ajusta espaçamento para evitar sobreposição
+    fig.tight_layout(pad=0.1)
 
     canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
     canvas.draw()
@@ -228,14 +234,14 @@ def modo_3(canvas_frame, slider_frame, arquivo_json, controles_frame):
     y_ball = data["ball"]["y"]
     tempos = data["time"]
 
-
     lado = 7.5  # tamanho do quadrado
 
     fig, ax = plt.subplots(figsize=(7.5, 6))
     ax.set_xlim(0, 150)
     ax.set_ylim(0, 130)
-    ax.set_aspect(150/130)
-    ax.set_title("Modo 3 - Representação com Quadrados")
+    ax.set_aspect('equal', adjustable='box')
+    # ax.set_aspect(150/130)
+    ax.set_title("Modo 3 - Trajetória dos Obstáculos")
     ax.set_xlabel("X")
     ax.set_ylabel("Y")
 
@@ -243,14 +249,6 @@ def modo_3(canvas_frame, slider_frame, arquivo_json, controles_frame):
     trajetoria_azul, = ax.plot([], [], color='blue', label="Trajetória Robô Azul")
 
     trajetoria_bola, = ax.plot([], [], color='darkorange', linestyle='--', label="Trajetória Bola")
-
-    # trajetorias_amarelos = []
-    # for i in range(3):
-    #     if amarelos_visiveis[i] and yellow_data[i]:
-    #         line, = ax.plot([], [], color='goldenrod', linestyle='-', label=f"Trajetória Amarelo {i}")
-    #     else:
-    #         line, = ax.plot([], [])  # vazio
-    #     trajetorias_amarelos.append(line)
 
     trajetorias_amarelos = []
     for i in range(3):
@@ -286,16 +284,41 @@ def modo_3(canvas_frame, slider_frame, arquivo_json, controles_frame):
         except KeyError:
             continue
 
-
-    # Robô azul (quadrado inicial)
+    # Robô azul (pose inicial fixo e mais transparente)
     x0, y0 = x_rb[0], y_rb[0]
     dx0, dy0 = theta_rb[0]
     ang0 = np.arctan2(dy0, dx0)
+
+    trans_init = Affine2D().rotate_around(x0, y0, ang0)
+    azul_fixo = Rectangle((x0 - lado / 2, y0 - lado / 2), lado, lado,
+                        transform=trans_init + ax.transData, color='blue', alpha=0.3)
+    ax.add_patch(azul_fixo)
+
+    # Robô azul (quadrado inicial)
     trans = Affine2D().rotate_around(x0, y0, ang0)
     azul_quad = Rectangle((x0 - lado / 2, y0 - lado / 2), lado, lado,
                           transform=trans + ax.transData, color='blue', alpha=0.8, label="Robô Azul")
     ax.add_patch(azul_quad)
-    ax.legend()
+    legend = ax.legend()
+    legend.remove()
+
+    # Robôs amarelos (quadrados móveis)
+    amarelos_quads = []
+
+    for i in range(3):
+        if yellow_data[i]:
+            x_am = yellow_data[i]["x"][0]
+            y_am = yellow_data[i]["y"][0]
+            dx_am, dy_am = yellow_data[i]["theta"][0]
+            angle_am = np.arctan2(dy_am, dx_am)
+
+            trans = Affine2D().rotate_around(x_am, y_am, angle_am)
+            rect = Rectangle((x_am - lado / 2, y_am - lado / 2), lado, lado,
+                            transform=trans + ax.transData, color='yellow', alpha=0.8)
+            ax.add_patch(rect)
+            amarelos_quads.append(rect)
+        else:
+            amarelos_quads.append(None)
 
     canvas = FigureCanvasTkAgg(fig, master=canvas_frame)
     canvas.draw()
@@ -305,7 +328,6 @@ def modo_3(canvas_frame, slider_frame, arquivo_json, controles_frame):
     ttk.Label(slider_frame, text=f"{tempos[0]:.2f}").pack(side="left", padx=5)
     slider_val = ttk.Label(slider_frame, text=f"t = {tempos[0]:.2f} s")
     slider_val.pack(side="left")
-
 
     def on_slider_move(val):
         i = int(val)
@@ -317,6 +339,25 @@ def modo_3(canvas_frame, slider_frame, arquivo_json, controles_frame):
         angle = np.arctan2(dy, dx)
         azul_quad.set_xy((x - lado / 2, y - lado / 2))
         azul_quad.set_transform(Affine2D().rotate_around(x, y, angle) + ax.transData)
+
+        # print(f"angle_az: {angle}")
+
+        for j in range(3):
+            if amarelos_quads[j] and yellow_data[j] and yellow0_var.get() + yellow1_var.get() + yellow2_var.get():
+                if [yellow0_var, yellow1_var, yellow2_var][j].get():
+                    x_am = yellow_data[j]["x"][i]
+                    y_am = yellow_data[j]["y"][i]
+                    dx_am, dy_am = yellow_data[j]["theta"][i]
+                    angle_am = np.arctan2(dy_am, dx_am)
+
+                    # if j == 0: print(f"angle_am[0]: {angle_am}")
+
+                    amarelos_quads[j].set_xy((x_am - lado / 2, y_am - lado / 2))
+                    amarelos_quads[j].set_transform(Affine2D().rotate_around(x_am, y_am, angle_am) + ax.transData)
+                else:
+                    amarelos_quads[j].set_visible(False)
+            elif amarelos_quads[j]:
+                amarelos_quads[j].set_visible(False)
 
         # Atualiza trajetória do azul até índice i
         trajetoria_azul.set_data(x_rb[:i+1], y_rb[:i+1])
@@ -331,7 +372,7 @@ def modo_3(canvas_frame, slider_frame, arquivo_json, controles_frame):
             if visiveis[j] and yellow_data[j]:
                 x_ = yellow_data[j]["x"][:i+1]
                 y_ = yellow_data[j]["y"][:i+1]
-                trajetorias_amarelos[j].set_data(x_, y_)
+                trajetorias_amarelos[j].set_data(x_, y_)                
             else:
                 trajetorias_amarelos[j].set_data([], [])
 
@@ -339,8 +380,7 @@ def modo_3(canvas_frame, slider_frame, arquivo_json, controles_frame):
         slider_val.config(text=f"t = {tempos[i]:.2f} s")
         canvas.draw()
 
-    ax.legend(loc="upper right")
-
+    # ax.legend(loc="upper right")
 
     slider = tk.Scale(slider_frame, from_=0, to=len(tempos) - 1,
                       orient="horizontal", length=500,
@@ -387,19 +427,28 @@ def modo_4(canvas_frame, slider_frame, controles_frame, arquivo_json):
     y = np.linspace(0, 130, 100)
     X, Y = np.meshgrid(x, y)
 
+    # Campo atrativo
     def campo_atrativo(X, Y):
         dist = np.sqrt((X - bola[0])**2 + (Y - bola[1])**2)
         campo = np.where(dist > 20, k_attr * dist, k_attr * 20)
         return campo
 
+    # Gera o campo atrativo uma vez
+    campoA = campo_atrativo(X, Y)
+    max_campoA = np.max(campoA)  # valor máximo permitido para o campo repulsivo
+
+    # Campo repulsivo
     def campo_repulsivo(X, Y):
         campo = np.zeros_like(X)
         for ox, oy in amarelos:
             d = np.sqrt((X - ox)**2 + (Y - oy)**2)
             efeito = np.where(d < 40, k_rep / (d**2 + 1e-5), 0)
-            efeito = np.where(d < 10, efeito * fator_proximidade, efeito)
             campo += efeito
+
+        # Limita a altura do campo repulsivo
+        campo = np.clip(campo, 0, max_campoA)
         return campo
+
 
     # Checkboxes para controle
     usar_attr = tk.BooleanVar(value=True)
@@ -419,10 +468,10 @@ def modo_4(canvas_frame, slider_frame, controles_frame, arquivo_json):
         ax.plot_surface(X, Y, Z, cmap="viridis", alpha=0.9, edgecolor='none')
 
         # Pontos dos robôs e bola
-        ax.scatter(azul[0], azul[1], 0, c='blue', s=50, label='Robô Azul')
+        ax.scatter(azul[0], azul[1], 0, c='blue', s=50, label='Aliado')
         ax.scatter(bola[0], bola[1], 0, c='darkorange', s=50, label='Bola')
         for i, (x_am, y_am) in enumerate(amarelos):
-            ax.scatter(x_am, y_am, 0, c='yellow', edgecolor='black', s=50, label=f'Amarelo {i}')
+            ax.scatter(x_am, y_am, 0, c='yellow', edgecolor='black', s=50, label=f'Rival {i}')
 
         ax.set_xlim(0, 150)
         ax.set_ylim(0, 130)
@@ -447,6 +496,139 @@ def modo_4(canvas_frame, slider_frame, controles_frame, arquivo_json):
 
     atualizar_campo()
 
+def modo_5(canvas_frame, controles_frame, arquivo_json):
+    import os
+    import json
+    import numpy as np
+    import tkinter as tk
+    from tkinter import ttk
+
+    # Limpar área
+    for widget in canvas_frame.winfo_children():
+        widget.destroy()
+    for widget in controles_frame.winfo_children():
+        widget.destroy()
+
+    caminho = os.path.join(PASTA_DADOS, arquivo_json)
+    with open(caminho, "r") as f:
+        data = json.load(f)
+
+    # Pegar dados necessários
+    tempos = data["time"]
+    e_rho = np.array(data["errors"]["e_rho"])
+    e_alpha = np.array(data["errors"]["e_alpha"])
+    e_beta = np.array(data["errors"]["e_beta"])
+    x_rb = np.array(data["robot_blue_0"]["x"])
+    y_rb = np.array(data["robot_blue_0"]["y"])
+
+    def rad2deg(rad):
+        return rad * (180 / np.pi)
+
+    # 1 - Tempo de percurso até |e_rho| <= 8
+    perc_index = next((i for i, e in enumerate(np.abs(e_rho)) if e <= 8), len(e_rho)-1)
+    tempo_percurso = tempos[perc_index]
+
+    # 2 - Distância inicial robô–bola
+    distancia_inicial = abs(e_rho[0])
+
+    # 3 - Distância total percorrida
+    distancia = 0.0
+    for i in range(perc_index):
+        dx = x_rb[i+1] - x_rb[i]
+        dy = y_rb[i+1] - y_rb[i]
+        distancia += np.sqrt(dx**2 + dy**2)
+
+    # 4 - Velocidade angular máxima
+    max_dalpha = max(abs(e_alpha[i+1] - e_alpha[i]) for i in range(len(e_alpha)-1))
+    intervalo_tempo = tempos[1] - tempos[0] if len(tempos) > 1 else 1e-3
+    vel_ang_max = max_dalpha / intervalo_tempo  # rad/s
+
+    # 5 - Valor final de e_alpha
+    valor_final_alpha = e_alpha[perc_index]
+
+    # 6 - Valor final de e_beta
+    valor_final_beta = e_beta[perc_index]
+
+    # Layout
+    ttk.Label(canvas_frame, text="🧮 Resultados da Simulação", font=("Arial", 14, "bold")).pack(pady=(10, 15))
+
+    resultados = [
+        f"1 - Tempo de percurso: {tempo_percurso:.2f} s",
+        f"2 - Distância inicial robô-bola: {distancia_inicial:.2f} cm",
+        f"3 - Distância percorrida pelo robô: {distancia:.2f} cm",
+        f"4 - Velocidade angular máxima: {vel_ang_max:.2f} rad/s ({rad2deg(vel_ang_max):.2f} °/s)",
+        f"5 - Valor final de e_alpha: {valor_final_alpha:.2f} rad ({rad2deg(valor_final_alpha):.2f}°)",
+        f"6 - Valor final de e_beta: {valor_final_beta:.2f} rad ({rad2deg(valor_final_beta):.2f}°)"
+    ]
+
+    for r in resultados:
+        ttk.Label(canvas_frame, text=r, font=("Arial", 12)).pack(anchor="w", padx=20, pady=2)
+
+def modo_6(canvas_frame, controles_frame, arquivo_json):
+    import os
+    import json
+    import numpy as np
+    import tkinter as tk
+    from tkinter import ttk
+
+    # Limpar área
+    for widget in canvas_frame.winfo_children():
+        widget.destroy()
+    for widget in controles_frame.winfo_children():
+        widget.destroy()
+
+    caminho = os.path.join(PASTA_DADOS, arquivo_json)
+    with open(caminho, "r") as f:
+        data = json.load(f)
+
+    # Pegar dados necessários
+    tempos = data["time"]
+    e_rho = np.array(data["field_errors"]["dist_rb"])
+    e_alpha = np.array(data["field_errors"]["angle_rb"])
+    e_beta = np.array(data["field_errors"]["angle_rbg"])
+    x_rb = np.array(data["robot_blue_0"]["x"])
+    y_rb = np.array(data["robot_blue_0"]["y"])
+
+    def rad2deg(rad):
+        return rad * (180 / np.pi)
+
+    # 1 - Tempo de percurso até |e_rho| <= 8
+    perc_index = next((i for i, e in enumerate(np.abs(e_rho)) if e <= 8), len(e_rho)-1)
+    tempo_percurso = tempos[perc_index]
+
+    # 2 - Distância inicial robô–bola
+    distancia_inicial = abs(e_rho[0])
+
+    # 3 - Distância total percorrida
+    distancia = 0.0
+    for i in range(perc_index):
+        dx = x_rb[i+1] - x_rb[i]
+        dy = y_rb[i+1] - y_rb[i]
+        distancia += np.sqrt(dx**2 + dy**2)
+
+    # 4 - Velocidade angular máxima
+    max_dalpha = max(abs(e_alpha[i+1] - e_alpha[i]) for i in range(len(e_alpha)-1))
+    intervalo_tempo = tempos[1] - tempos[0] if len(tempos) > 1 else 1e-3
+    vel_ang_max = max_dalpha / intervalo_tempo  # rad/s
+
+    # 5 - Valor final de e_alpha
+    valor_final_alpha = e_alpha[perc_index]
+
+
+    # Layout
+    ttk.Label(canvas_frame, text="🧮 Resultados da Simulação", font=("Arial", 14, "bold")).pack(pady=(10, 15))
+
+    resultados = [
+        f"1 - Tempo de percurso: {tempo_percurso:.2f} s",
+        f"2 - Distância inicial robô-bola: {distancia_inicial:.2f} cm",
+        f"3 - Distância percorrida pelo robô: {distancia:.2f} cm",
+        f"4 - Velocidade angular máxima: {vel_ang_max:.2f} rad/s ({rad2deg(vel_ang_max):.2f} °/s)",
+        f"5 - Valor final de e_alpha: {valor_final_alpha:.2f} rad ({rad2deg(valor_final_alpha):.2f}°)",
+    ]
+
+    for r in resultados:
+        ttk.Label(canvas_frame, text=r, font=("Arial", 12)).pack(anchor="w", padx=20, pady=2)
+
 def criar_interface():
     root = tk.Tk()
     root.title("Visualização de Simulações")
@@ -456,14 +638,15 @@ def criar_interface():
     top_frame.pack(side="top", fill="x", padx=10, pady=5)
 
     ttk.Label(top_frame, text="Selecione o arquivo:").pack(side="left", padx=5)
-    arquivos = listar_arquivos_json()
+    arquivos = sorted(listar_arquivos_json())
+    # print(sorted(arquivos))
     arquivo_var = tk.StringVar(value=arquivos[0] if arquivos else "")
     arquivo_menu = ttk.OptionMenu(top_frame, arquivo_var, arquivo_var.get(), *arquivos)
     arquivo_menu.pack(side="left", padx=5)
 
     ttk.Label(top_frame, text="Modo:").pack(side="left", padx=5)
     modo_var = tk.StringVar(value="modo 1")
-    modo_menu = ttk.OptionMenu(top_frame, modo_var, "modo 1", "modo 1", "modo 2", "modo 3", "modo 4")
+    modo_menu = ttk.OptionMenu(top_frame, modo_var, "modo 1", "modo 1", "modo 2", "modo 3", "modo 4", "modo 5", "modo 6")
     modo_menu.pack(side="left", padx=5)
 
     def rodar_simulacao():
@@ -478,6 +661,10 @@ def criar_interface():
             modo_3(canvas_frame, slider_frame, arq, controles_frame)
         elif modo == "modo 4":
             modo_4(canvas_frame, slider_frame, controles_frame, arq)
+        elif modo == "modo 5":
+            modo_5(canvas_frame, controles_frame, arq)
+        elif modo == "modo 6":
+            modo_6(canvas_frame, controles_frame, arq)
 
     ttk.Button(top_frame, text="Rodar Simulação", command=rodar_simulacao).pack(side="left", padx=10)
 
