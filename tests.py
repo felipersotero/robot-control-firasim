@@ -8,6 +8,8 @@ from lib.core.data import Pose2D
 
 import time
 
+import numpy as np
+
 def replacer_attempt():
     yellow_replacer = ReplacerComm(team_color_yellow=True, replacer_ip='224.0.0.1', replacer_port=20011) #10004)
     blue_replacer = ReplacerComm(team_color_yellow=False, replacer_ip="127.0.0.1", replacer_port=20011)
@@ -90,10 +92,73 @@ def json_read():
     value = data["ball"]["x"][0]
     print(value)
 
+def noise():
+    # Vetor resultante
+    F = [1, 0]
+    # ruido_magnitude = 0.01 * np.linalg.norm(F)
+
+    # # Ruído (pequeno vetor aleatório)
+    # ruido = np.random.uniform(-1, 1, size=2)
+    # ruido = ruido / np.linalg.norm(ruido) * ruido_magnitude  # normaliza e escala
+
+    # # Novo vetor resultante com ruído
+    # F_mod = F + ruido
+
+    # # print(F_mod)
+
+    resulting_force_mod = np.linalg.norm(F)
+    resulting_force_angle = np.arccos(np.clip(np.dot(F,[1,0])/np.linalg.norm(F), -1.0, 1.0))
+
+    print(f"F = {np.round(resulting_force_mod, 2)} | {np.round(np.degrees(resulting_force_angle), 2)}°")
+
+    # noise = np.random.uniform(0, (np.pi/4))/10
+
+    resulting_force_angle = resulting_force_angle*1.1 # + (0.01*np.sign(resulting_force_angle)) # noise*np.sign(resulting_force_angle)
+
+    print(f"F = {np.round(resulting_force_mod, 2)} | {np.round(np.degrees(resulting_force_angle), 2)}°")
+
+    dx = np.cos(resulting_force_angle)
+    dy = np.sin(resulting_force_angle)
+
+    resulting_force = [resulting_force_mod*1.5*dx, resulting_force_mod*1.5*dy]
+
+    resulting_force_mod = np.linalg.norm(resulting_force)
+    resulting_force_angle = np.arccos(np.clip(np.dot(resulting_force,[1,0])/np.linalg.norm(resulting_force), -1.0, 1.0))
+
+    print(f"F = {np.round(resulting_force_mod, 2)} | {np.round(np.degrees(resulting_force_angle), 2)}°")
+
+def vector():
+
+    vector = [3, 4]
+
+    mod = np.linalg.norm(vector)
+    angle_vec = np.arccos(np.clip(np.dot(vector,[1,0])/np.linalg.norm(vector), -1.0, 1.0))
+
+    print(vector)
+    print(f"{mod} | {np.degrees(angle_vec)}°")
+
+    print("########## ALTERAÇÕES ##########")
+
+    angle_vec = angle_vec*1.1
+    # mod = mod*1.5
+    print(f"{mod} | {np.degrees(angle_vec)}°")
+    vector_2 = [mod*np.cos(angle_vec), mod*np.sin(angle_vec)]
+    print(vector_2)
+
+def vectorAgain():
+    vector = [-4.36369149e+01, -1.71283586e-03]
+
+    mod = np.linalg.norm(vector)
+    angle_vec = np.arctan2(vector[1], vector[0])  # Usa arctan2!
+
+    print(f"vetor antes:  {vector}")
+    vector = [mod*np.cos(angle_vec), mod*np.sin(angle_vec)]
+    print(f"vetor depois: {vector}")
+    
 def main():
 
     print("Hello World!")
-    json_read()
+    vectorAgain()
 
 if __name__ == '__main__':
     main()

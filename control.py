@@ -41,6 +41,8 @@ class Control():
         magnitude1 = np.linalg.norm(v1)
         magnitude2 = np.linalg.norm(v2)
 
+        # print(f"{magnitude1} | {magnitude2}")
+
         cosine_theta = dot_product / (magnitude1 * magnitude2)
 
         angle_rad = np.arccos(np.clip(cosine_theta, -1.0, 1.0))
@@ -149,10 +151,26 @@ class Control():
 
         elif mode == 1:
             # print("Modo com Navegação")
-            vector = self.navigation.createPotentialField(robotId=robotId, activeEnemies = [1, 0, 0])
+            vector = self.navigation.createPotentialField(robotId=robotId, activeEnemies = [1, 1, 1])
 
             mod = np.linalg.norm(vector)
-            angle = self.angleBetweenObjects(self.main.allies_coordinates[robotId] + vector, self.main.allies_coordinates[robotId], self.main.allies_direction[robotId])
+            angle_vec = np.arctan2(vector[1], vector[0])
+
+            # print(f"vetor antes:  {vector}")
+
+            # if(abs(mod) <= 3):
+            #     print("MÓDULO PEQUENO <= 1")
+            #     angle_vec += np.random.uniform(0, np.pi/72)
+            #     mod = max(mod, 3)
+            #     vector = [np.round(mod*np.cos(angle_vec), 8), np.round(mod*np.sin(angle_vec), 8)]
+            #     print(f"vetor depois: {vector}")
+
+            coord_plus_vec = [self.main.allies_coordinates[robotId][0] + vector[0], self.main.allies_coordinates[robotId][1] + vector[1]]
+
+            # print(f"coord    :{self.main.allies_coordinates[robotId]}")
+            # print(f"coord + v:{coord_plus_vec}")
+            
+            angle = self.angleBetweenObjects(coord_plus_vec, self.main.allies_coordinates[robotId], self.main.allies_direction[robotId])
 
             dist_ball = self.distanceBetweenObjects(self.main.ball_coordinates, self.main.allies_coordinates[robotId])
             angle_ball = self.angleBetweenObjects(self.main.ball_coordinates, self.main.allies_coordinates[robotId], self.main.allies_direction[robotId])
@@ -173,9 +191,10 @@ class Control():
                     angle = -(np.pi - angle)
                 else:
                     angle = np.pi - abs(angle)
-
             if area == 2:
                 mod = -mod
+            
+            # print(f"F = {np.round(mod, 1)} | {np.round(np.degrees(angle_vec), 1)}° | a = {np.round(np.degrees(angle), 1)}°")
 
             wr, wl = self.controlRobot(mod, angle, 0, area)
 

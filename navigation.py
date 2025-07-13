@@ -22,6 +22,8 @@ class Navigation():
         self.field_y = 130
 
         self.consider_walls = True
+        self.noise_added = False
+
 
     # Funções de tratamento de dados
     def convertXValues(self, value):
@@ -89,6 +91,9 @@ class Navigation():
         ball_x = ball_coords[0]
         ball_y = ball_coords[1]
 
+        distance_rb = np.linalg.norm([ball_x - source_coordinates[0], ball_y - source_coordinates[1]])
+        factor = 1
+
         for i, obstacle in enumerate(obstacles_coordinates):
             if activeEnemies[i] == 1:
                 # print(f"inimigo {i}")
@@ -99,6 +104,8 @@ class Navigation():
                 # Goodrich adaptado
                 if mod <= area:
                    vector_result = vector_result + (gain*(1/(mod**2))*vector_norm)
+                   if distance_rb >= 80:
+                       factor = 0.6
 
                 if mod <= (10):
                    vector_result = vector_result + (gain*1000*(1/(mod**2))*vector_norm)
@@ -130,7 +137,7 @@ class Navigation():
                 else:
                     vector_result[1] = vector_result[1] + 5
         
-        return vector_result
+        return vector_result, factor
 
     def createPotentialField(self, robotId, activeEnemies):
         
@@ -139,6 +146,7 @@ class Navigation():
         obstacles_coordinates = []
 
         attractiveForce = self.calculateAttractiveForce(0.6, self.allies_coordinates[robotId], self.ball_coordinates)
+        factor = 1
 
         if (self.saving): self.saveData(0, self.allies_coordinates[robotId][0], self.allies_coordinates[robotId][1])
         if (self.saving): self.saveData(1, self.ball_coordinates[0], self.ball_coordinates[1])
@@ -147,10 +155,67 @@ class Navigation():
             obstacles_coordinates.append(enemy)
             if (self.saving): self.saveData(i, enemy[0], enemy[1])
 
-        repulsiveForce = self.calculateRepulsiveForces(4500, 40, self.allies_coordinates[robotId], obstacles_coordinates, activeEnemies, self.ball_coordinates)
-        resulting_force = attractiveForce - repulsiveForce
+        repulsiveForce, factor = self.calculateRepulsiveForces(4500, 40, self.allies_coordinates[robotId], obstacles_coordinates, activeEnemies, self.ball_coordinates, )
+        factor = 1 # retirar isso se quiser evitar problema de campo atrativo alto e colisões
+        resulting_force = factor*attractiveForce - repulsiveForce
+        
+        print(factor)
+        print(resulting_force)
+        resulting_force_mod = np.linalg.norm(resulting_force)
+        resulting_force_angle = np.arccos(np.clip(np.dot(resulting_force,[1,0])/np.linalg.norm(resulting_force), -1.0, 1.0))
 
-        if (self.saving): self.saveData(5, resulting_force[0], resulting_force[1])
+        # if resulting_force_mod <= 3:
+        #     # resulting_force = 5*attractiveForce - repulsiveForce
+        #     print("MÓDULO PEQUENO <= 1")
+        #     resulting_force_angle += np.random.uniform(0, np.pi/72)
+
+        #     resulting_force_mod = max(resulting_force_mod, 3)
+        #     resulting_force = [np.round(resulting_force_mod*np.cos(resulting_force_angle), 8), np.round(resulting_force_mod*np.sin(resulting_force_angle), 8)]
+
+        
+        # if resulting_force_mod <= 1:
+        #     resulting_force_angle = resulting_force_angle*1.1 # + (0.01*np.sign(resulting_force_angle)) # noise*np.sign(resulting_force_angle)
+
+        #     print(f"F = {np.round(resulting_force_mod, 2)} | {np.round(np.degrees(resulting_force_angle), 2)}°")
+
+        #     dx = np.cos(resulting_force_angle)
+        #     dy = np.sin(resulting_force_angle)
+
+        #     resulting_force = [resulting_force_mod*1.5*dx, resulting_force_mod*1.5*dy]
+
+        #     resulting_force_mod = np.linalg.norm(resulting_force)
+        #     resulting_force_angle = np.arccos(np.clip(np.dot(resulting_force,[1,0])/np.linalg.norm(resulting_force), -1.0, 1.0))
+
+        #     print(f"F = {np.round(resulting_force_mod, 2)} | {np.round(np.degrees(resulting_force_angle), 2)}°")
+
+        #     noise = np.random.uniform(0, (np.pi/4))/10
+
+        #     resulting_force_angle = resulting_force_angle + (0.01*np.sign(resulting_force_angle)) # noise*np.sign(resulting_force_angle)
+
+        #     dx = np.cos(resulting_force_angle)
+        #     dy = np.sin(resulting_force_angle)
+
+        #     resulting_force = [resulting_force_mod*dx, resulting_force_mod*dy]
+
+        # print("#####################################")
+        # print(f"F = {np.round(resulting_force_mod, 1)} | {np.round(np.degrees(resulting_force_angle), 1)}°")
+
+
+        # Adição de ruídos angulares
+        # if not self.noise_added:
+        #     if resulting_force_mod <= 1:
+        #         self.noise_added = True
+
+        #         ruido_magnitude = 0.01 * np.linalg.norm(resulting_force)
+        #         # Ruído (pequeno vetor aleatório)
+        #         ruido = np.random.uniform(-1, 1, size=2)
+        #         ruido = ruido / np.linalg.norm(ruido) * ruido_magnitude  # normaliza e escala
+
+        #         # Novo vetor resultante com ruído
+        #         resulting_force = resulting_force + ruido
+
+        # if resulting_force_mod > 1:
+        #     self.noise_added = False
 
         return resulting_force
 

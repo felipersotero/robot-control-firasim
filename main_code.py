@@ -216,6 +216,10 @@ class Main():
 
                     self.blue_control.transmit_robot(0, wl, wr)
 
+                    # self.yellow_control.transmit_robot(0, -15, -15)
+                    # self.yellow_control.transmit_robot(1, 10, 15)
+                    # self.yellow_control.transmit_robot(2, 5, 12)
+
                     if self.enemies_actives:
                        self.yellow_control.transmit_robot(0, 0, 4)
                        self.yellow_control.transmit_robot(1, 8, 3)
