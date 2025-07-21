@@ -113,6 +113,17 @@ class Navigation():
                 # if mod <= area:
                 #    vector_result = vector_result + (80-mod)*vector_norm
 
+        # if self.consider_walls:
+        #     if robot_x < 10 and robot_x != 0:
+        #         vector_result[0] = vector_result[0] - 15
+        #     elif robot_x > (self.field_x - 10):
+        #         vector_result[0] = vector_result[0] + 15
+
+        #     if robot_y < 10:
+        #         vector_result[1] = vector_result[1] - 15
+        #     elif robot_y > (self.field_y - 10):
+        #         vector_result[1] = vector_result[1] + 15
+
         # Desvio das paredes NOVO
         if self.consider_walls:
             if robot_x < 10 and robot_x != 0:

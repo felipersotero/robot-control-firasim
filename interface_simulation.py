@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 # Pasta onde estão os arquivos JSON
 PASTA_DADOS = "./simulation_data"
+# PASTA_DADOS = "./simulation_avoid_walls"
 # PASTA_DADOS = "./final_simulation_data"
 
 def listar_arquivos_json():

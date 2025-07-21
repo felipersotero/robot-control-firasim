@@ -151,7 +151,7 @@ class Control():
 
         elif mode == 1:
             # print("Modo com Navegação")
-            vector = self.navigation.createPotentialField(robotId=robotId, activeEnemies = [1, 1, 1])
+            vector = self.navigation.createPotentialField(robotId=robotId, activeEnemies = [1, 0, 0])
 
             mod = np.linalg.norm(vector)
             angle_vec = np.arctan2(vector[1], vector[0])
